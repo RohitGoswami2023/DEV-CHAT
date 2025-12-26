@@ -8,14 +8,13 @@ import { AuthContext } from "../context/AuthContext";
 import AdminDashboard from "./pages/AdminDashboard";
 import CreateGroupPage from "./pages/groups/CreateGroupPage";
 import JoinGroupPage from "./pages/groups/JoinGroupPage";
-import bgImage from "./assets/bgImage.svg";
+
+// FIXED: Matching the filename 'bgIImage.svg' seen in your assets folder
+import bgImage from "./assets/bgIImage.svg";
 
 const App = () => {
   const { authUser, isCheckingAuth } = useContext(AuthContext);
 
-  // 🔥 1. SHOW LOADING SCREEN
-  // This prevents the app from redirecting an Admin to Login 
-  // while it's still fetching their details on page refresh.
   if (isCheckingAuth && !authUser) {
     return (
       <div className="flex items-center justify-center h-screen bg-black">
@@ -27,6 +26,7 @@ const App = () => {
   return (
     <div 
       className="bg-cover bg-center bg-no-repeat bg-fixed min-h-screen" 
+      // FIXED: Using the variable bgImage correctly
       style={{ backgroundImage: `url(${bgImage})` }}
     >
       <Toaster />
@@ -52,7 +52,6 @@ const App = () => {
           element={!authUser ? <LoginPage /> : <Navigate to="/" />}
         />
 
-        {/* 🔥 2. SECURE ADMIN ROUTE */}
         <Route 
             path="/admin" 
             element={authUser?.isAdmin ? <AdminDashboard /> : <Navigate to="/" />} 
@@ -63,7 +62,6 @@ const App = () => {
           element={authUser ? <ProfilePage /> : <Navigate to="/login" />}
         />
         
-        {/* Catch-all redirect */}
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </div>
