@@ -9,12 +9,12 @@ import AdminDashboard from "./pages/AdminDashboard";
 import CreateGroupPage from "./pages/groups/CreateGroupPage";
 import JoinGroupPage from "./pages/groups/JoinGroupPage";
 
-// 1. Importing the exact filename you copied
-import bgImage from "./assets/bgImage.svg";
-
 const App = () => {
   const { authUser, isCheckingAuth } = useContext(AuthContext);
 
+  // 🔥 1. SHOW LOADING SCREEN
+  // This prevents the app from redirecting an Admin to Login 
+  // while it's still fetching their details on page refresh.
   if (isCheckingAuth && !authUser) {
     return (
       <div className="flex items-center justify-center h-screen bg-black">
@@ -24,11 +24,7 @@ const App = () => {
   }
 
   return (
-    <div 
-      className="bg-cover bg-center bg-no-repeat bg-fixed min-h-screen" 
-      // 2. Using the variable correctly so Vite finds the file during deployment
-      style={{ backgroundImage: `url(${bgImage})` }}
-    >
+    <div className="bg-[url('./src/assets/bgImage.svg')] bg-contain min-h-screen">
       <Toaster />
 
       <Routes>
@@ -52,6 +48,8 @@ const App = () => {
           element={!authUser ? <LoginPage /> : <Navigate to="/" />}
         />
 
+        {/* 🔥 2. SECURE ADMIN ROUTE */}
+        {/* If user is NOT an admin, they get kicked to Home immediately */}
         <Route 
             path="/admin" 
             element={authUser?.isAdmin ? <AdminDashboard /> : <Navigate to="/" />} 
@@ -62,6 +60,7 @@ const App = () => {
           element={authUser ? <ProfilePage /> : <Navigate to="/login" />}
         />
         
+        {/* Catch-all redirect */}
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </div>
