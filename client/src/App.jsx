@@ -9,7 +9,7 @@ import AdminDashboard from "./pages/AdminDashboard";
 import CreateGroupPage from "./pages/groups/CreateGroupPage";
 import JoinGroupPage from "./pages/groups/JoinGroupPage";
 
-// FIXED: Matching the filename 'bgIImage.svg' seen in your assets folder
+// Matches your file: src/assets/bgIImage.svg
 import bgImage from "./assets/bgIImage.svg";
 
 const App = () => {
@@ -26,7 +26,6 @@ const App = () => {
   return (
     <div 
       className="bg-cover bg-center bg-no-repeat bg-fixed min-h-screen" 
-      // FIXED: Using the variable bgImage correctly
       style={{ backgroundImage: `url(${bgImage})` }}
     >
       <Toaster />
