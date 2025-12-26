@@ -9,8 +9,8 @@ import AdminDashboard from "./pages/AdminDashboard";
 import CreateGroupPage from "./pages/groups/CreateGroupPage";
 import JoinGroupPage from "./pages/groups/JoinGroupPage";
 
-// Matches your file: src/assets/bgIImage.svg
-import bgImage from "./assets/bgIImage.svg";
+// 1. Importing the exact filename you copied
+import bgImage from "./assets/bgImage.svg";
 
 const App = () => {
   const { authUser, isCheckingAuth } = useContext(AuthContext);
@@ -26,6 +26,7 @@ const App = () => {
   return (
     <div 
       className="bg-cover bg-center bg-no-repeat bg-fixed min-h-screen" 
+      // 2. Using the variable correctly so Vite finds the file during deployment
       style={{ backgroundImage: `url(${bgImage})` }}
     >
       <Toaster />
