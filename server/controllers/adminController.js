@@ -1,7 +1,7 @@
 // controllers/adminController.js
 import User from "../models/User.js";
 import Group from "../models/Group.js";
-import Message from "../models/message.js";
+import Message from "../models/Message.js";
 import mongoose from "mongoose";
 import { userSocketMap } from "../server.js"; // Import socket map to count online users
 

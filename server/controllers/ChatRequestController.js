@@ -2,7 +2,7 @@
 
 import ChatRequest from "../models/ChatRequest.js";
 import User from "../models/User.js";
-import Message from "../models/message.js"; // <--- 1. IMPORT MESSAGE MODEL
+import Message from "../models/Message.js"; // <--- 1. IMPORT MESSAGE MODEL
 import { io, userSocketMap } from "../server.js"; 
 
 // ---------------- SEND REQUEST ----------------

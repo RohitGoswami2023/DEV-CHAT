@@ -1,4 +1,4 @@
-import Message from "../models/message.js";
+import Message from "../models/Message.js";
 import User from "../models/User.js";
 import ChatRequest from "../models/ChatRequest.js"; // 🔥 1. IMPORT THIS
 import cloudinary from "../lib/cloudinary.js";
