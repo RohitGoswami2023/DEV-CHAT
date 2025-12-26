@@ -8,6 +8,7 @@ import { AuthContext } from "../context/AuthContext";
 import AdminDashboard from "./pages/AdminDashboard";
 import CreateGroupPage from "./pages/groups/CreateGroupPage";
 import JoinGroupPage from "./pages/groups/JoinGroupPage";
+import bgImage from "./assets/bgImage.svg";
 
 const App = () => {
   const { authUser, isCheckingAuth } = useContext(AuthContext);
@@ -24,7 +25,10 @@ const App = () => {
   }
 
   return (
-    <div className="bg-[url('./src/assets/bgImage.svg')] bg-contain min-h-screen">
+    <div 
+      className="bg-cover bg-center bg-no-repeat bg-fixed min-h-screen" 
+      style={{ backgroundImage: `url(${bgImage})` }}
+    >
       <Toaster />
 
       <Routes>
@@ -49,7 +53,6 @@ const App = () => {
         />
 
         {/* 🔥 2. SECURE ADMIN ROUTE */}
-        {/* If user is NOT an admin, they get kicked to Home immediately */}
         <Route 
             path="/admin" 
             element={authUser?.isAdmin ? <AdminDashboard /> : <Navigate to="/" />} 
