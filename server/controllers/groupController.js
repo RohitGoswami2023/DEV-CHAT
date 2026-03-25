@@ -1,5 +1,6 @@
 import bcrypt from "bcryptjs";
 import Group from "../models/Group.js";
+import ChatRequest from "../models/ChatRequest.js";
 import cloudinary from "../lib/cloudinary.js";
 import { generateGroupId } from "../lib/generateGroupId.js";
 import { io, userSocketMap } from "../server.js";
@@ -33,6 +34,7 @@ export const createGroup = async (req, res) => {
       createdBy: req.user._id,
       admins: [req.user._id],
       members: [req.user._id],
+      joinDates: { [req.user._id.toString()]: new Date() },
     });
 
     // Notify creator (optional, mainly for multi-device sync)
@@ -65,6 +67,7 @@ export const joinGroup = async (req, res) => {
       }
 
       group.members.push(userId);
+      group.joinDates.set(userId, new Date());
       await group.save();
 
       // Populate for frontend
@@ -315,6 +318,7 @@ export const approveJoinRequest = async (req, res) => {
 
     group.joinRequests = group.joinRequests.filter(r => r.user.toString() !== userId);
     group.members.push(userId);
+    group.joinDates.set(userId, new Date());
     await group.save();
 
     const updatedGroup = await Group.findById(groupId)
@@ -365,6 +369,57 @@ export const rejectJoinRequest = async (req, res) => {
     notifyGroupUpdate(updatedGroup);
 
     res.json({ success: true, message: "Request rejected" });
+  } catch(err) {
+    res.status(500).json({message: err.message});
+  }
+};
+
+/* ================= ADD FRIEND TO GROUP ================= */
+export const addFriendToGroup = async (req, res) => {
+  try {
+    const { groupId, targetUserId } = req.body;
+    const adminId = req.user._id.toString();
+
+    const group = await Group.findById(groupId);
+    if (!group) return res.status(404).json({ message: "Group not found" });
+
+    const isAdmin = group.admins.map(a => a.toString()).includes(adminId);
+    const isMember = group.members.map(m => m.toString()).includes(adminId);
+    if (!isAdmin && !isMember) return res.status(403).json({ message: "You must be in the group to add members" });
+
+    // Validate Friendship
+    const isFriend = await ChatRequest.findOne({
+      $or: [
+        { sender: adminId, receiver: targetUserId, status: "accepted" },
+        { sender: targetUserId, receiver: adminId, status: "accepted" },
+      ]
+    });
+
+    if (!isFriend) return res.status(403).json({ message: "You can only directly add active friends" });
+
+    if (group.members.map(a => a.toString()).includes(targetUserId)) {
+      return res.status(400).json({ message: "User is already in the group" });
+    }
+
+    group.members.push(targetUserId);
+    group.joinDates.set(targetUserId, new Date());
+    group.joinRequests = group.joinRequests.filter(r => r.user.toString() !== targetUserId);
+
+    await group.save();
+
+    const updatedGroup = await Group.findById(groupId)
+        .populate("members", "fullName profilePic")
+        .populate("admins", "fullName profilePic");
+
+    notifyGroupUpdate(updatedGroup);
+
+    const userSocket = userSocketMap[targetUserId];
+    if (userSocket) {
+        io.to(userSocket).emit("groupJoined", updatedGroup);
+    }
+
+    res.json({ success: true, message: "Friend added successfully", group: updatedGroup });
+
   } catch(err) {
     res.status(500).json({message: err.message});
   }

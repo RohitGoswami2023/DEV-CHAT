@@ -116,7 +116,16 @@ export const getGroupMessages = async (req, res) => {
       return res.status(403).json({ success: false, message: "Access denied: Not a member" });
     }
 
-    const messages = await GroupMessage.find({ group: groupId })
+    // 🔥 HISTORY ACCESS PIPELINE
+    let timeFilter = {};
+    if (group.historyAccess === "from_join") {
+       const userJoinedAt = group.joinDates?.get(userId);
+       if (userJoinedAt) {
+          timeFilter = { createdAt: { $gte: new Date(userJoinedAt) } };
+       }
+    }
+
+    const messages = await GroupMessage.find({ group: groupId, ...timeFilter })
       .populate("sender", "fullName profilePic")
       .populate({ path: "replyTo", populate: { path: "sender", select: "fullName" } })
       .sort({ createdAt: 1 });

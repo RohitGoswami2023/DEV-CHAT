@@ -12,6 +12,7 @@ import {
   demoteAdmin,
   approveJoinRequest,
   rejectJoinRequest,
+  addFriendToGroup,
 } from "../controllers/groupController.js";
 
 const router = express.Router();
@@ -27,6 +28,7 @@ router.post("/kick", protectRoute, kickMember);
 router.post("/demote", protectRoute, demoteAdmin);
 router.post("/approve", protectRoute, approveJoinRequest);
 router.post("/reject", protectRoute, rejectJoinRequest);
+router.post("/add-friend", protectRoute, addFriendToGroup);
 
 
 export default router;

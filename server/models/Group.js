@@ -2,6 +2,21 @@ import mongoose from "mongoose";
 
 const groupSchema = new mongoose.Schema(
   {
+    rules: { type: String },
+    
+    // Explicit History Security Settings defined natively by Admin
+    historyAccess: {
+      type: String,
+      enum: ["from_join", "all"],
+      default: "all"
+    },
+    
+    // Explicit mappings anchoring user identifiers statically against creation timestamps independently
+    joinDates: {
+      type: Map,
+      of: Date,
+      default: {}
+    },
     name: { type: String, required: true },
 
     groupId: {

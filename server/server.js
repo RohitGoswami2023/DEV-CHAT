@@ -10,8 +10,26 @@ import groupRoutes from "./routes/groupRoutes.js";
 import GroupMessageRoutes from "./routes/groupMessageRoutes.js";
 import ChatRequestRoutes from "./routes/ChatRequestRoutes.js";
 import searchRoutes from "./routes/searchRoutes.js";
-// 👇 IMPORT ADMIN ROUTES HERE
-import adminRoutes from "./routes/adminRoutes.js"; 
+import adminRoutes from "./routes/adminRoutes.js";
+import reminderRoutes from "./routes/reminderRoutes.js";
+// Cron dependencies
+import Reminder from "./models/Reminder.js";
+import Message from "./models/Message.js";
+import GroupMessage from "./models/GroupMessage.js";
+import User from "./models/User.js";
+import admin from "./lib/firebaseAdmin.js";
+import { sendReminderEmail } from "./lib/mailer.js";
+import crypto from "crypto";
+import dotenv from "dotenv";
+dotenv.config();
+const MSG_SECRET = process.env.MESSAGE_SECRET_KEY;
+const encryptForCron = (text) => {
+  if (!text || !MSG_SECRET) return null;
+  const iv = crypto.randomBytes(16);
+  const cipher = crypto.createCipheriv("aes-256-cbc", Buffer.from(MSG_SECRET), iv);
+  let enc = cipher.update(text, "utf8", "hex"); enc += cipher.final("hex");
+  return `${iv.toString("hex")}:${enc}`;
+};
 // import helmet from "helmet"; 
 import mongoSanitize from "express-mongo-sanitize";
 import rateLimit from "express-rate-limit";
@@ -105,7 +123,8 @@ app.use("/api/groups", groupRoutes);
 app.use("/api/group-messages", GroupMessageRoutes);
 app.use("/api/chat-requests", ChatRequestRoutes);
 app.use("/api/search", searchRoutes);
-app.use("/api/admin", adminRoutes); // ✅ This will work now
+app.use("/api/admin", adminRoutes);
+app.use("/api/reminders", reminderRoutes);
 
 app.get("/api/status", (req, res) => {
   res.send("Server is live");
@@ -129,11 +148,119 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 5001;
 
 connectDB()
-  .then(() =>
-    server.listen(PORT, () =>
-      console.log(`Server running on PORT ${PORT}`)
-    )
-  )
+  .then(() => {
+    server.listen(PORT, () => console.log(`Server running on PORT ${PORT}`));
+
+    /* ===================== REMINDER CRON WORKER =====================
+       Runs every 60 seconds. Two phases:
+       1) 15-min warning  → push notification + email
+       2) Execution       → creates real message + socket broadcast
+    ================================================================ */
+    setInterval(async () => {
+      try {
+        const now = new Date();
+        const in15 = new Date(now.getTime() + 15 * 60 * 1000);
+
+        // ── Phase 1: 15-min warning ──────────────────────────────────
+        const toWarn = await Reminder.find({
+          executed: false,
+          notified15Min: false,
+          scheduledAt: { $lte: in15 },
+        }).populate("creatorId", "fullName email fcmToken");
+
+        for (const rem of toWarn) {
+          rem.notified15Min = true;
+          await rem.save();
+
+          // Browser push
+          if (rem.creatorId?.fcmToken) {
+            try {
+              await admin.messaging().send({
+                token: rem.creatorId.fcmToken,
+                notification: {
+                  title: "⏰ Reminder in 15 min",
+                  body: rem.text.substring(0, 100),
+                },
+                data: { type: "reminder", chatId: rem.chatId, isGroup: String(rem.isGroup) },
+              });
+            } catch (e) { console.error("FCM reminder warn:", e.message); }
+          }
+
+          // Email
+          if (rem.creatorId?.email) {
+            await sendReminderEmail(rem.creatorId.email, rem);
+          }
+
+          // Socket to all participants so bell badge updates
+          const warnPayload = { type: "reminder15MinWarning", reminder: rem };
+          if (rem.isGroup) {
+            const { default: Group } = await import("./models/Group.js");
+            const grp = await Group.findById(rem.chatId);
+            if (grp) grp.members.forEach(mid => { const s = userSocketMap[mid.toString()]; if (s) io.to(s).emit("reminderWarning", warnPayload); });
+          } else {
+            [rem.creatorId._id.toString(), rem.chatId].forEach(uid => { const s = userSocketMap[uid]; if (s) io.to(s).emit("reminderWarning", warnPayload); });
+          }
+        }
+
+        // ── Phase 2: Execute due reminders ──────────────────────────
+        const toExecute = await Reminder.find({
+          executed: false,
+          scheduledAt: { $lte: now },
+        }).populate("creatorId", "fullName fcmToken");
+
+        for (const rem of toExecute) {
+          rem.executed = true;
+          await rem.save();
+
+          try {
+            if (rem.isGroup) {
+              const msg = await GroupMessage.create({
+                group: rem.chatId,
+                sender: rem.creatorId._id,
+                text: rem.text,
+              });
+              const populated = await msg.populate("sender", "fullName profilePic");
+              const { default: Group } = await import("./models/Group.js");
+              const grp = await Group.findById(rem.chatId);
+              if (grp) {
+                grp.members.forEach(mid => {
+                  const s = userSocketMap[mid.toString()];
+                  if (s) io.to(s).emit("newMessage", populated);
+                });
+              }
+            } else {
+              const encText = encryptForCron(rem.text);
+              const receiverOnline = userSocketMap[rem.chatId];
+              const msg = await Message.create({
+                senderId: rem.creatorId._id,
+                receiverId: rem.chatId,
+                text: encText,
+                status: receiverOnline ? "delivered" : "sent",
+              });
+              const plainMsg = { ...msg._doc, text: rem.text };
+              if (receiverOnline) io.to(receiverOnline).emit("newMessage", plainMsg);
+              const senderSocket = userSocketMap[rem.creatorId._id.toString()];
+              if (senderSocket) io.to(senderSocket).emit("newMessage", plainMsg);
+            }
+          } catch (execErr) {
+            console.error("Reminder execute error:", execErr.message);
+          }
+
+          // Socket: tell UI to remove this reminder from the bell
+          const removePayload = { reminderId: rem._id.toString() };
+          if (rem.isGroup) {
+            const { default: Group } = await import("./models/Group.js");
+            const grp = await Group.findById(rem.chatId);
+            if (grp) grp.members.forEach(mid => { const s = userSocketMap[mid.toString()]; if (s) io.to(s).emit("reminderExecuted", removePayload); });
+          } else {
+            [rem.creatorId._id.toString(), rem.chatId].forEach(uid => { const s = userSocketMap[uid]; if (s) io.to(s).emit("reminderExecuted", removePayload); });
+          }
+        }
+      } catch (cronErr) {
+        console.error("[ReminderCron] error:", cronErr.message);
+      }
+    }, 60_000); // every 60 seconds
+  })
   .catch((err) => {
     console.error("MongoDB connection error:", err);
     process.exit(1);
