@@ -15,6 +15,7 @@ import {
   toggleBlockUser,
   getBlockedUsers,
   toggleMute,
+  toggleArchive,
 } from "../controllers/userController.js";
 import { protectRoute } from "../middleware/auth.js";
 
@@ -48,4 +49,6 @@ userRouter.delete("/delete-account", protectRoute, deleteAccount);
 
 
 userRouter.post("/mute", protectRoute, toggleMute);
+userRouter.post("/archive", protectRoute, toggleArchive);
+
 export default userRouter;

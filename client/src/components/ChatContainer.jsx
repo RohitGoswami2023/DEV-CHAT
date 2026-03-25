@@ -13,7 +13,10 @@ const ChatContainer = () => {
     toggleRightSidebar, 
     setActiveChat, 
     deleteMessage, 
-    fetchMessages 
+    fetchMessages,
+    toggleArchiveChat,
+    toggleBlockUser,
+    privateChats
   } = useContext(ChatContext);
   const { authUser, axios } = useContext(AuthContext);
 
@@ -26,6 +29,10 @@ const ChatContainer = () => {
   const [mentionList, setMentionList] = useState([]);
   const [showMentions, setShowMentions] = useState(false);
   const [openMsgMenu, setOpenMsgMenu] = useState(null);
+
+  // --- MOBILES SWIPE GESTURE HANDLERS ---
+  const [touchStart, setTouchStart] = useState(null);
+  const [touchEnd, setTouchEnd] = useState(null);
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
@@ -126,8 +133,38 @@ const ChatContainer = () => {
     setDeleteTarget({ msg, isOwner, isAdmin });
   };
 
+  // --- MOBILES SWIPE GESTURE HANDLERS ---
+  const minSwipeDistance = 75; // More forgiving distance for natural swiping
+
+  const onTouchStart = (e) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const onTouchMove = (e) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+
+  const onTouchEndHandler = () => {
+    if (!touchStart || !touchEnd) return;
+    const distance = touchStart - touchEnd;
+    // Swipe Right (touchStart > touchEnd distance is negative. Math.abs checks absolute.)
+    const isRightSwipe = distance < -minSwipeDistance;
+    
+    // Only fire swipe back on mobile (where the LG back arrow is actually used)
+    if (isRightSwipe && window.innerWidth < 1024) {
+      setActiveChat(null);
+    }
+  };
+
   return (
-    <div className="h-full flex flex-col bg-transparent relative" onClick={() => setOpenMsgMenu(null)}>
+    <div 
+      className="h-full flex flex-col bg-transparent relative" 
+      onClick={() => setOpenMsgMenu(null)}
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEndHandler}
+    >
       {/* HEADER */}
       <div className="flex items-center justify-between px-4 lg:px-6 py-3 lg:py-4 border-b bg-white/30 backdrop-blur-md sticky top-0 z-10">
         <div className="flex items-center gap-3 overflow-hidden">
@@ -257,44 +294,52 @@ const ChatContainer = () => {
       )}
 
       {/* INPUT AREA */}
-      <div className="px-4 lg:px-6 py-4 border-t bg-white/50 relative">
-        {previewImage && (
-          <div className="absolute bottom-full left-0 mb-2 p-4 bg-white/90 backdrop-blur shadow-lg rounded-t-2xl flex items-center gap-4 w-full lg:w-auto">
-            <div className="relative group">
-              <img src={previewImage} alt="Preview" className="w-20 h-20 object-cover rounded-lg border-2 border-green-600" />
-              <button onClick={() => setPreviewImage(null)} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600">✕</button>
-            </div>
-            <div className="text-sm"><p className="font-bold text-gray-700">Image selected</p></div>
-          </div>
-        )}
-
-        {showMentions && mentionList.length > 0 && (
-          <div className="absolute bottom-full left-6 w-64 bg-white border shadow-2xl rounded-t-xl overflow-hidden mb-2">
-            {mentionList.map(m => (
-              <div key={m._id} onClick={() => insertMention(m)} className="flex items-center gap-3 p-3 hover:bg-gray-100 cursor-pointer">
-                <img src={m.profilePic || assets.avatar_icon} className="w-8 h-8 rounded-full" /><span className="font-semibold text-sm">{m.fullName}</span>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {replyingTo && (
-          <div className="flex items-center justify-between bg-gray-100 p-2 mb-2 border-l-4 border-green-600 rounded">
-            <div className="text-xs truncate max-w-[250px] lg:max-w-md">
-              <span className="font-bold block">Replying to {replyingTo.sender?.fullName || replyingTo.senderId?.fullName}</span>
-              <span className="opacity-70">{replyingTo.text || "Image"}</span>
-            </div>
-            <button onClick={() => setReplyingTo(null)} className="p-1">✕</button>
-          </div>
-        )}
-
-        <div className="flex gap-2 lg:gap-3 items-center">
-          <input value={input} onChange={handleInputChange} onKeyDown={(e) => e.key === "Enter" && handleSend()} placeholder="Type a message..." className="flex-1 border-2 border-black bg-white text-black placeholder:text-gray-600 rounded-full px-4 lg:px-5 py-2 lg:py-3 outline-none transition-all" />
-          <input hidden type="file" id="img" accept="image/*" onChange={handleImage} />
-          <label htmlFor="img" className="cursor-pointer hover:opacity-70 transition-opacity p-1"><img src={assets.gallery_icon} className="w-6" alt="Gallery" /></label>
-          <button onClick={handleSend} className="hover:scale-110 active:scale-95 transition-transform p-1"><img src={assets.send_button} className="w-7" alt="Send" /></button>
+      {(!isGroup && (privateChats.find(u => u._id === activeChat.data._id) || activeChat.data).blockedUsers?.includes(authUser._id)) ? (
+        <div className="px-4 lg:px-6 py-4 border-t bg-gray-50 flex items-center justify-center">
+            <p className="text-sm font-bold text-red-600 text-center bg-red-100 px-6 py-3 rounded-xl shadow-inner w-full lg:w-auto border border-red-200">
+                This user has blocked you. You cannot send messages.
+            </p>
         </div>
-      </div>
+      ) : (
+        <div className="px-4 lg:px-6 py-4 border-t bg-white/50 relative">
+          {previewImage && (
+            <div className="absolute bottom-full left-0 mb-2 p-4 bg-white/90 backdrop-blur shadow-lg rounded-t-2xl flex items-center gap-4 w-full lg:w-auto">
+              <div className="relative group">
+                <img src={previewImage} alt="Preview" className="w-20 h-20 object-cover rounded-lg border-2 border-green-600" />
+                <button onClick={() => setPreviewImage(null)} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600">✕</button>
+              </div>
+              <div className="text-sm"><p className="font-bold text-gray-700">Image selected</p></div>
+            </div>
+          )}
+
+          {showMentions && mentionList.length > 0 && (
+            <div className="absolute bottom-full left-6 w-64 bg-white border shadow-2xl rounded-t-xl overflow-hidden mb-2">
+              {mentionList.map(m => (
+                <div key={m._id} onClick={() => insertMention(m)} className="flex items-center gap-3 p-3 hover:bg-gray-100 cursor-pointer">
+                  <img src={m.profilePic || assets.avatar_icon} className="w-8 h-8 rounded-full" /><span className="font-semibold text-sm">{m.fullName}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {replyingTo && (
+            <div className="flex items-center justify-between bg-gray-100 p-2 mb-2 border-l-4 border-green-600 rounded">
+              <div className="text-xs truncate max-w-[250px] lg:max-w-md">
+                <span className="font-bold block">Replying to {replyingTo.sender?.fullName || replyingTo.senderId?.fullName}</span>
+                <span className="opacity-70">{replyingTo.text || "Image"}</span>
+              </div>
+              <button onClick={() => setReplyingTo(null)} className="p-1">✕</button>
+            </div>
+          )}
+
+          <div className="flex gap-2 lg:gap-3 items-center">
+            <input value={input} onChange={handleInputChange} onKeyDown={(e) => e.key === "Enter" && handleSend()} placeholder="Type a message..." className="flex-1 border-2 border-black bg-white text-black placeholder:text-gray-600 rounded-full px-4 lg:px-5 py-2 lg:py-3 outline-none transition-all" />
+            <input hidden type="file" id="img" accept="image/*" onChange={handleImage} />
+            <label htmlFor="img" className="cursor-pointer hover:opacity-70 transition-opacity p-1"><img src={assets.gallery_icon} className="w-6" alt="Gallery" /></label>
+            <button onClick={handleSend} className="hover:scale-110 active:scale-95 transition-transform p-1"><img src={assets.send_button} className="w-7" alt="Send" /></button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

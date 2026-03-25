@@ -1,11 +1,11 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState, useRef } from "react";
 import { AuthContext } from "./AuthContext.jsx";
 import toast from "react-hot-toast";
 
 export const ChatContext = createContext();
 
 export const ChatProvider = ({ children }) => {
-  const { axios, socket, authUser } = useContext(AuthContext);
+  const { axios, socket, authUser, setAuthUser } = useContext(AuthContext);
 
   const [groups, setGroups] = useState([]);
   const [privateChats, setPrivateChats] = useState([]);
@@ -19,6 +19,19 @@ export const ChatProvider = ({ children }) => {
 
   const [showRightSidebar, setShowRightSidebar] = useState(false);
   const toggleRightSidebar = () => setShowRightSidebar((p) => !p);
+
+  // --- STABLE REFS FOR SOCKET CALLBACKS ---
+  const activeChatRef = useRef(activeChat);
+  const privateChatsRef = useRef(privateChats);
+  const mutedChatsRef = useRef(mutedChats);
+  const groupsRef = useRef(groups);
+
+  useEffect(() => {
+    activeChatRef.current = activeChat;
+    privateChatsRef.current = privateChats;
+    mutedChatsRef.current = mutedChats;
+    groupsRef.current = groups;
+  }, [activeChat, privateChats, mutedChats, groups]);
 
   // --- FETCH DATA ---
   const fetchGroups = async () => {
@@ -43,6 +56,29 @@ export const ChatProvider = ({ children }) => {
       const { data } = await axios.get("/api/chat-requests/incoming"); 
       if (data.success) setChatRequests(data.requests);
     } catch (error) { console.error(error); }
+  };
+
+  // --- BLOCK / ARCHIVE MANAGEMENT ---
+  const toggleArchiveChat = async (chatId) => {
+    try {
+      const res = await axios.post("/api/auth/archive", { chatId });
+      if (res.data.success) {
+        setAuthUser((prev) => {
+           const updatedArchived = res.data.isArchived 
+                ? [...(prev.archivedChats || []), chatId] 
+                : (prev.archivedChats || []).filter(id => id !== chatId);
+           return { ...prev, archivedChats: updatedArchived };
+        });
+        toast.success(res.data.message);
+        
+        // Auto-Mute when archiving
+        if (res.data.isArchived) {
+           if (!mutedChats.includes(chatId) && !mutedChatsRef.current?.includes(chatId)) {
+               toggleMuteChat(chatId);
+           }
+        }
+      }
+    } catch (error) { toast.error("Failed to update archive status"); }
   };
 
   const fetchBlockedUsers = async () => {
@@ -187,22 +223,27 @@ export const ChatProvider = ({ children }) => {
     if (!socket || !authUser) return;
 
     const onNewMessage = (msg) => {
+      const currentActiveChat = activeChatRef.current;
+      const currentMuted = mutedChatsRef.current || [];
+      const currentGroups = groupsRef.current || [];
+      const currentPrivates = privateChatsRef.current || [];
+
       const chatId = msg.group?._id || msg.group || msg.groupId || 
                      (msg.senderId === authUser._id ? msg.receiverId : msg.senderId);
 
-      if (msg.senderId && !msg.group && !privateChats.find(u => u._id === msg.senderId)) {
+      if (msg.senderId && !msg.group && !currentPrivates.find(u => u._id === msg.senderId)) {
         fetchPrivateChats();
       }
 
-      if (activeChat && chatId === activeChat.data._id) {
+      if (currentActiveChat && chatId === currentActiveChat.data._id) {
         setMessages((prev) => (prev.find(m => m._id === msg._id) ? prev : [...prev, msg]));
       } else {
         setUnseenMessages((prev) => ({ ...prev, [chatId]: (prev[chatId] || 0) + 1 }));
       }
 
       // NOTIFICATIONS
-      if (msg.senderId !== authUser._id && !mutedChats.includes(chatId)) {
-         const isChatInactive = !activeChat || activeChat.data._id !== chatId;
+      if (msg.senderId !== authUser._id && !currentMuted.includes(chatId)) {
+         const isChatInactive = !currentActiveChat || currentActiveChat.data._id !== chatId;
          if (isChatInactive) {
             let title = "";
             let senderName = "Someone";
@@ -211,7 +252,7 @@ export const ChatProvider = ({ children }) => {
                 let gName = msg.group?.name; 
                 if (!gName) {
                     const gId = msg.group?._id || msg.group || msg.groupId;
-                    const foundGroup = groups.find(g => g._id === gId);
+                    const foundGroup = currentGroups.find(g => g._id === gId);
                     if (foundGroup) gName = foundGroup.name;
                 }
                 title = `Message from ${gName || "Group"}`;
@@ -219,13 +260,12 @@ export const ChatProvider = ({ children }) => {
                 if (msg.sender && msg.sender.fullName) {
                     senderName = msg.sender.fullName;
                 } else if (msg.senderId) {
-                    const foundUser = privateChats.find(u => u._id === msg.senderId);
+                    const foundUser = currentPrivates.find(u => u._id === msg.senderId);
                     if (foundUser) senderName = foundUser.fullName;
                 }
                 title = `${senderName} sent you a message`;
             }
             
-            // 🔥 UPDATED UI: Transparent, No Msg Body, Pill Shape
             toast.custom((t) => (
               <div
                 className={`${
@@ -238,8 +278,6 @@ export const ChatProvider = ({ children }) => {
                 <span className="text-sm font-bold text-gray-900 drop-shadow-sm truncate max-w-[250px]">
                   {title}
                 </span>
-                
-                {/* Small close x */}
                 <button onClick={(e) => {
                     e.stopPropagation();
                     toast.dismiss(t.id);
@@ -253,25 +291,29 @@ export const ChatProvider = ({ children }) => {
     };
 
     const onMessagesRead = ({ by }) => {
-      if (activeChat?.data?._id === by) {
+      const currentActiveChat = activeChatRef.current;
+      if (currentActiveChat?.data?._id === by) {
         setMessages((prev) => prev.map((msg) => (msg.sender?._id === authUser._id || msg.senderId === authUser._id) ? { ...msg, status: "read" } : msg));
       }
     };
 
     const onDeleted = ({ messageId, chatId }) => {
-      if (activeChat && activeChat.data._id === chatId) {
+      const currentActiveChat = activeChatRef.current;
+      if (currentActiveChat && currentActiveChat.data._id === chatId) {
         setMessages((prev) => prev.map((m) => (m._id === messageId ? { ...m, deleted: true, text: null, image: null } : m)));
       }
     };
 
     const onGroupUpdate = (updatedGroup) => {
+      const currentActiveChat = activeChatRef.current;
       setGroups((prev) => prev.map((g) => (g._id === updatedGroup._id ? updatedGroup : g)));
-      if (activeChat && activeChat.data._id === updatedGroup._id) setActiveChat((prev) => ({ ...prev, data: updatedGroup }));
+      if (currentActiveChat && currentActiveChat.data._id === updatedGroup._id) setActiveChat((prev) => ({ ...prev, data: updatedGroup }));
     };
 
     const onUserKicked = ({ groupId, userId }) => {
+      const currentActiveChat = activeChatRef.current;
       if (userId === authUser._id) {
-        if (activeChat && activeChat.data._id === groupId) { setActiveChat(null); setMessages([]); }
+        if (currentActiveChat && currentActiveChat.data._id === groupId) { setActiveChat(null); setMessages([]); }
         setGroups((prev) => prev.filter((g) => g._id !== groupId));
         toast.error("Removed from group");
       } else { fetchGroups(); }
@@ -283,10 +325,28 @@ export const ChatProvider = ({ children }) => {
     };
 
     const onNewRequest = () => { fetchChatRequests(); toast("New Friend Request"); };
-    const onGroupDeleted = (groupId) => { setGroups((prev) => prev.filter(g => g._id !== groupId)); if (activeChat?.data?._id === groupId) { setActiveChat(null); setMessages([]); toast.error("Group deleted"); } };
+    
+    const onGroupDeleted = (groupId) => { 
+      const currentActiveChat = activeChatRef.current;
+      setGroups((prev) => prev.filter(g => g._id !== groupId)); 
+      if (currentActiveChat?.data?._id === groupId) { setActiveChat(null); setMessages([]); toast.error("Group deleted"); } 
+    };
+    
     const onGroupJoined = (newGroup) => { setGroups((prev) => [newGroup, ...prev]); toast.success(`Joined ${newGroup.name}`); };
     const onNewJoinRequest = () => { fetchGroups(); toast("New Group Join Request"); };
     const onBlockListUpdate = () => { fetchBlockedUsers(); };
+    
+    const onBlockedBy = ({ userId }) => {
+      setPrivateChats((prev) => prev.map(u => 
+        u._id === userId ? { ...u, blockedUsers: [...(u.blockedUsers || []), authUser._id] } : u
+      ));
+    };
+
+    const onUnblockedBy = ({ userId }) => {
+      setPrivateChats((prev) => prev.map(u => 
+        u._id === userId ? { ...u, blockedUsers: (u.blockedUsers || []).filter(id => id !== authUser._id) } : u
+      ));
+    };
 
     socket.on("newMessage", onNewMessage);
     socket.on("messagesRead", onMessagesRead);
@@ -300,14 +360,26 @@ export const ChatProvider = ({ children }) => {
     socket.on("groupJoined", onGroupJoined);
     socket.on("newJoinRequest", onNewJoinRequest);
     socket.on("blockListUpdate", onBlockListUpdate);
+    socket.on("blockedBy", onBlockedBy);
+    socket.on("unblockedBy", onUnblockedBy);
 
     return () => {
-      socket.off("newMessage"); socket.off("messagesRead"); socket.off("messageDeleted");
-      socket.off("groupMessageDeleted"); socket.off("groupUpdated"); socket.off("memberKicked");
-      socket.off("requestAccepted"); socket.off("newChatRequest"); socket.off("groupDeleted");
-      socket.off("groupJoined"); socket.off("newJoinRequest"); socket.off("blockListUpdate");
+      socket.off("newMessage", onNewMessage);
+      socket.off("messagesRead", onMessagesRead);
+      socket.off("messageDeleted", onDeleted);
+      socket.off("groupMessageDeleted", onDeleted);
+      socket.off("groupUpdated", onGroupUpdate);
+      socket.off("memberKicked", onUserKicked);
+      socket.off("requestAccepted", onRequestAccepted);
+      socket.off("newChatRequest", onNewRequest);
+      socket.off("groupDeleted", onGroupDeleted);
+      socket.off("groupJoined", onGroupJoined);
+      socket.off("newJoinRequest", onNewJoinRequest);
+      socket.off("blockListUpdate", onBlockListUpdate);
+      socket.off("blockedBy", onBlockedBy);
+      socket.off("unblockedBy", onUnblockedBy);
     };
-  }, [socket, authUser, activeChat, privateChats, mutedChats, groups]);
+  }, [socket, authUser]);
 
   useEffect(() => { 
     if (authUser) { fetchGroups(); fetchPrivateChats(); fetchChatRequests(); fetchBlockedUsers(); } 
@@ -320,7 +392,7 @@ export const ChatProvider = ({ children }) => {
         sendChatRequest, acceptChatRequest, rejectChatRequest,
         approveGroupJoinRequest, rejectGroupJoinRequest,
         toggleBlockUser, toggleMuteChat, mutedChats, 
-        showRightSidebar, toggleRightSidebar, fetchGroups
+        showRightSidebar, toggleRightSidebar, fetchGroups, toggleArchiveChat
     }}>
       {children}
     </ChatContext.Provider>

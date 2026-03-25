@@ -78,6 +78,7 @@ const userSchema = new mongoose.Schema(
       type: String,
     },
     mutedChats: [{ type: String }],
+    archivedChats: [{ type: String }],
     
     authProvider: {
       type: String,

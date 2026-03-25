@@ -37,7 +37,7 @@ export const AuthProvider = ({ children }) => {
 
   // ================= SOCKET =================
   const connectSocket = (user) => {
-    if (!user || socketRef.current?.connected) return;
+    if (!user || socketRef.current) return;
 
     socketRef.current = io(backendUrl, {
       query: { userId: user._id },
@@ -83,7 +83,7 @@ export const AuthProvider = ({ children }) => {
 
       if (data.userId) {
         setOtpUserId(data.userId);
-        setOtpType("login");
+        setOtpType(data.requiresSignupVerify ? "signup" : "login");
         return data;
       }
 

@@ -6,6 +6,7 @@ import { generateOTP } from "../lib/otpGenerator.js";
 import { sendOTPEmail } from "../lib/mailer.js";
 import cloudinary from "../lib/cloudinary.js";
 import { generatePublicUserId } from "../lib/generatePublicUserId.js";
+import { io, userSocketMap } from "../server.js";
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
@@ -109,9 +110,18 @@ export const login = async (req, res) => {
       return res.status(400).json({ success: false, message: "Invalid credentials" });
 
     if (!user.isAccountVerified) {
-      return res.status(403).json({
-        success: false,
-        message: "Account not verified. Please verify your email first.",
+      const otp = generateOTP();
+      user.verifyOtp = otp;
+      user.verifyOtpExpireAt = Date.now() + 5 * 60 * 1000;
+      await user.save();
+
+      await sendOTPEmail(user.email, otp);
+
+      return res.json({
+        success: true,
+        message: "Account not verified. A new OTP has been sent to your email to verify your account.",
+        userId: user._id,
+        requiresSignupVerify: true
       });
     }
 
@@ -365,10 +375,22 @@ export const toggleBlockUser = async (req, res) => {
     if (isBlocked) {
       // Unblock logic
       await User.findByIdAndUpdate(myId, { $pull: { blockedUsers: targetUserId } });
+      
+      const targetSocket = userSocketMap[targetUserId];
+      if (targetSocket) {
+        io.to(targetSocket).emit("unblockedBy", { userId: myId.toString() });
+      }
+
       res.json({ success: true, message: "User unblocked" });
     } else {
       // Block logic
       await User.findByIdAndUpdate(myId, { $addToSet: { blockedUsers: targetUserId } });
+      
+      const targetSocket = userSocketMap[targetUserId];
+      if (targetSocket) {
+        io.to(targetSocket).emit("blockedBy", { userId: myId.toString() });
+      }
+
       res.json({ success: true, message: "User blocked" });
     }
   } catch (error) {
@@ -406,6 +428,29 @@ export const toggleMute = async (req, res) => {
       // Mute
       await User.findByIdAndUpdate(myId, { $addToSet: { mutedChats: chatId } });
       res.json({ success: true, message: "Notifications muted", isMuted: true });
+    }
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// ---------------- TOGGLE ARCHIVE ----------------
+export const toggleArchive = async (req, res) => {
+  try {
+    const myId = req.user._id;
+    const { chatId } = req.body;
+
+    const user = await User.findById(myId);
+    const isArchived = user.archivedChats.includes(chatId);
+
+    if (isArchived) {
+      // Unarchive
+      await User.findByIdAndUpdate(myId, { $pull: { archivedChats: chatId } });
+      res.json({ success: true, message: "Chat unarchived", isArchived: false });
+    } else {
+      // Archive
+      await User.findByIdAndUpdate(myId, { $addToSet: { archivedChats: chatId } });
+      res.json({ success: true, message: "Chat archived", isArchived: true });
     }
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

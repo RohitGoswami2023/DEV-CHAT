@@ -76,13 +76,14 @@ const OtpPage = ({ userId, type, goBack }) => {
   const handleResendOtp = async () => {
     setResending(true);
     try {
-      if (type === "signup") {
-        if (!signupData) throw new Error("Signup data missing");
-        await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/auth/signup`, signupData);
-      } else {
-        if (!loginData) throw new Error("Login data missing");
-        await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/auth/login`, loginData);
-      }
+      const credentials = type === "signup" ? (signupData || loginData) : loginData;
+      if (!credentials) throw new Error("Credentials missing. Cannot resend.");
+
+      await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/auth/login`, {
+        email: credentials.email,
+        password: credentials.password
+      });
+
       toast.success("OTP resent successfully");
       setOtp(new Array(6).fill(""));
       inputRefs.current[0].focus();

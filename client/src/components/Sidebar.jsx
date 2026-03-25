@@ -23,12 +23,15 @@ const Sidebar = () => {
     rejectGroupJoinRequest,  
     unseenMessages = {},
     showRightSidebar,    
-    toggleRightSidebar   
+    toggleRightSidebar,
+    toggleArchiveChat,
+    toggleBlockUser
   } = useContext(ChatContext);
 
   const [tab, setTab] = useState("groups"); 
   const [search, setSearch] = useState("");
   const [searchResults, setSearchResults] = useState([]);
+  const [openMenuId, setOpenMenuId] = useState(null);
 
   // --- HELPER: Handle Request Acceptance ---
   const handleAcceptRequest = async (requestId) => {
@@ -42,6 +45,22 @@ const Sidebar = () => {
     if (showRightSidebar) {
       toggleRightSidebar();
     }
+  };
+
+  const handleDeleteChat = async (e, chatId) => {
+    e.stopPropagation();
+    if (!window.confirm("Delete this entire chat history for you?")) return;
+    try {
+      const { data } = await axios.delete(`/api/messages/chat/${chatId}`);
+      if (data.success) {
+        toast.success("Conversation deleted");
+        if (activeChat?.data?._id === chatId) {
+           setActiveChat(null);
+        }
+        setTab("requests"); // Temporary UI pop to force refresh, no fetchPrivateChats exposed
+        setTimeout(() => setTab("chats"), 10);
+      }
+    } catch (error) { toast.error("Failed to delete conversation"); }
   };
 
   // --- SEARCH LOGIC ---
@@ -77,8 +96,18 @@ const Sidebar = () => {
   });
 
   // --- COUNTS ---
-  const totalGroupUnseen = groups.reduce((sum, g) => sum + (unseenMessages[g._id] || 0), 0);
-  const totalChatUnseen = privateChats.reduce((sum, c) => sum + (unseenMessages[c._id] || 0), 0);
+  const unarchivedGroups = groups.filter(g => !authUser?.archivedChats?.includes(g._id));
+  const unarchivedChats = privateChats.filter(c => !authUser?.archivedChats?.includes(c._id));
+  
+  const archivedGroups = groups.filter(g => authUser?.archivedChats?.includes(g._id));
+  const archivedChats = privateChats.filter(c => authUser?.archivedChats?.includes(c._id));
+
+  const totalGroupUnseen = unarchivedGroups.reduce((sum, g) => sum + (unseenMessages[g._id] || 0), 0);
+  const totalChatUnseen = unarchivedChats.reduce((sum, c) => sum + (unseenMessages[c._id] || 0), 0);
+  const totalArchivedUnseen = archivedGroups.reduce((sum, g) => sum + (unseenMessages[g._id] || 0), 0) + 
+                              archivedChats.reduce((sum, c) => sum + (unseenMessages[c._id] || 0), 0);
+  const totalArchivedItems = archivedGroups.length + archivedChats.length;
+  
   const totalRequests = chatRequests.length + groupRequests.length;
 
   const handleLogout = () => {
@@ -89,7 +118,7 @@ const Sidebar = () => {
   const popAnimationClass = "transform transition-all duration-200 ease-out hover:scale-[1.02] hover:shadow-lg active:scale-95";
 
   return (
-    <div className="h-full w-full lg:w-[340px] bg-white/20 backdrop-blur-xl flex flex-col border-r overflow-hidden">
+    <div className="h-full w-full lg:w-[340px] bg-white/20 backdrop-blur-xl flex flex-col border-r overflow-hidden" onClick={() => setOpenMenuId(null)}>
       
       {/* HEADER */}
       <div className="flex items-center justify-between p-4 border-b">
@@ -158,6 +187,16 @@ const Sidebar = () => {
           Reqs
           {totalRequests > 0 && <span className="bg-red-500 text-white text-[9px] w-4 h-4 rounded-full flex items-center justify-center">{totalRequests}</span>}
         </button>
+
+        <button
+          onClick={() => { setTab("archived"); setSearch(""); }}
+          className={`flex-1 py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-all ${
+            tab === "archived" ? "bg-purple-600 text-white shadow-md scale-105" : "hover:bg-white/10 hover:scale-105 active:scale-95"
+          }`}
+        >
+          Archive {totalArchivedItems > 0 && `(${totalArchivedItems})`}
+          {totalArchivedUnseen > 0 && <span className="bg-red-500 text-white text-[9px] w-4 h-4 rounded-full flex items-center justify-center">{totalArchivedUnseen}</span>}
+        </button>
       </div>
 
       {/* SEARCH INPUT */}
@@ -216,18 +255,33 @@ const Sidebar = () => {
         {/* === GROUPS TAB === */}
         {tab === "groups" && (
              (search ? searchResults.filter(i => false) : groups)
-             .filter(g => g.name.toLowerCase().includes(search.toLowerCase()))
+             .filter(g => !authUser?.archivedChats?.includes(g._id) && g.name.toLowerCase().includes(search.toLowerCase()))
              .map((group) => {
                 const isActive = activeChat?.data?._id === group._id;
                 return (
                     <div key={group._id} onClick={() => handleSelectChat("group", group)} 
-                        className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer ${isActive ? "bg-white/40 shadow-sm" : "hover:bg-white/20"} ${popAnimationClass}`}>
+                         className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer group/item relative ${openMenuId === group._id ? "z-50" : "z-0"} ${isActive ? "bg-white/40 shadow-sm" : "hover:bg-white/20"} ${popAnimationClass}`}>
                         <img src={group.groupIcon || assets.avatar_icon} className="w-10 h-10 rounded-full border" alt="" />
-                        <div className="flex-1">
-                            <p className="font-semibold text-sm">{group.name}</p>
-                            <p className="text-[10px] opacity-60">{group.members?.length} members</p>
+                        <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-sm truncate">{group.name}</p>
+                            <p className="text-[10px] opacity-60 truncate">{group.members?.length} members</p>
                         </div>
-                        {unseenMessages[group._id] > 0 && <span className="bg-green-600 text-white text-[10px] px-1.5 rounded-full">{unseenMessages[group._id]}</span>}
+                        
+                        <div className="flex items-center gap-2">
+                           {unseenMessages[group._id] > 0 && <span className="bg-green-600 text-white text-[10px] px-1.5 rounded-full">{unseenMessages[group._id]}</span>}
+                           
+                           {/* 3 DOTS MENU */}
+                           <div className="relative ml-auto" onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
+                              <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpenMenuId(openMenuId === group._id ? null : group._id); }} className="text-xl font-bold p-1 hover:bg-black/10 rounded-full opacity-60 hover:opacity-100 transition-opacity flex items-center justify-center w-8 h-8">⋮</button>
+                              {openMenuId === group._id && (
+                                <div className="absolute top-10 right-0 w-32 bg-white border border-gray-200 rounded-xl shadow-2xl z-50 overflow-hidden text-sm font-bold flex flex-col py-1 animate-in fade-in zoom-in-95">
+                                   <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleArchiveChat(group._id); setOpenMenuId(null); }} className="text-left px-4 py-3 hover:bg-gray-100 text-black transition-colors">
+                                      Archive
+                                   </button>
+                                </div>
+                              )}
+                           </div>
+                        </div>
                     </div>
                 )
              })
@@ -236,7 +290,9 @@ const Sidebar = () => {
         {/* === CHATS TAB === */}
         {tab === "chats" && (
             <>
-            {(search.trim().length > 0 ? searchResults : privateChats).map((item) => {
+            {(search.trim().length > 0 ? searchResults : privateChats)
+                .filter(item => !authUser?.archivedChats?.includes(item._id))
+                .map((item) => {
                 const isMyFriend = isFriend(item._id);
                 const isActive = activeChat?.data?._id === item._id;
                 
@@ -246,7 +302,7 @@ const Sidebar = () => {
 
                 return (
                     <div key={item._id} onClick={handleClick}
-                         className={`flex items-center gap-3 p-3 rounded-xl ${isMyFriend ? "cursor-pointer" : "cursor-default"} ${isActive ? "bg-white/40 shadow-sm" : "hover:bg-white/10"} ${isMyFriend ? popAnimationClass : ""}`}>
+                         className={`flex items-center gap-3 p-3 rounded-xl group/item relative ${openMenuId === item._id ? "z-50" : "z-0"} ${isMyFriend ? "cursor-pointer" : "cursor-default"} ${isActive ? "bg-white/40 shadow-sm" : "hover:bg-white/10"} ${isMyFriend ? popAnimationClass : ""}`}>
                         
                         <div className="relative">
                             <img src={item.profilePic || assets.avatar_icon} className="w-10 h-10 rounded-full border border-white/20" alt="" />
@@ -263,9 +319,29 @@ const Sidebar = () => {
                         </div>
 
                         {isMyFriend ? (
-                             unseenMessages[item._id] > 0 && (
-                                <span className="bg-green-600 text-white text-[10px] px-1.5 rounded-full">{unseenMessages[item._id]}</span>
-                             )
+                            <div className="flex items-center gap-2">
+                               {unseenMessages[item._id] > 0 && (
+                                  <span className="bg-green-600 text-white text-[10px] px-1.5 rounded-full">{unseenMessages[item._id]}</span>
+                               )}
+                               
+                               {/* 3 DOTS MENU */}
+                               <div className="relative ml-auto" onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
+                                  <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpenMenuId(openMenuId === item._id ? null : item._id); }} className="text-xl font-bold p-1 hover:bg-black/10 rounded-full opacity-60 hover:opacity-100 transition-opacity flex items-center justify-center w-8 h-8">⋮</button>
+                                  {openMenuId === item._id && (
+                                    <div className="absolute top-10 right-0 w-32 bg-white border border-gray-200 rounded-xl shadow-2xl z-50 overflow-hidden text-sm font-bold flex flex-col py-1 animate-in fade-in zoom-in-95">
+                                       <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleArchiveChat(item._id); setOpenMenuId(null); }} className="text-left px-4 py-3 hover:bg-gray-100 text-black transition-colors">
+                                          Archive
+                                       </button>
+                                       <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleBlockUser(item._id); setOpenMenuId(null); }} className="text-left px-4 py-3 hover:bg-gray-100 transition-colors border-t border-gray-100 text-red-600">
+                                          {authUser?.blockedUsers?.includes(item._id) ? "Unblock" : "Block"}
+                                       </button>
+                                       <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpenMenuId(null); handleDeleteChat(e, item._id); }} className="text-left px-4 py-3 hover:bg-red-50 text-red-600 transition-colors border-t border-gray-100">
+                                          Delete
+                                       </button>
+                                    </div>
+                                  )}
+                               </div>
+                            </div>
                         ) : (
                             <button 
                                 onClick={(e) => {
@@ -282,6 +358,61 @@ const Sidebar = () => {
             
             {search.trim().length > 0 && searchResults.length === 0 && (
                 <div className="text-center mt-5 opacity-50 text-xs">No users found</div>
+            )}
+            </>
+        )}
+
+        {/* === ARCHIVED TAB === */}
+        {tab === "archived" && (
+            <>
+            {[...privateChats, ...groups]
+              .filter(item => authUser?.archivedChats?.includes(item._id) && (item.fullName || item.name).toLowerCase().includes(search.toLowerCase()))
+              .map((item) => {
+                const isGroupObj = !!item.name;
+                const isActive = activeChat?.data?._id === item._id;
+                
+                return (
+                    <div key={item._id} onClick={() => handleSelectChat(isGroupObj ? "group" : "private", item)}
+                         className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer group/item relative ${openMenuId === item._id ? "z-50" : "z-0"} ${isActive ? "bg-white/40 shadow-sm" : "hover:bg-white/10"} ${popAnimationClass}`}>
+                        
+                        <div className="relative">
+                            <img src={item.profilePic || item.groupIcon || assets.avatar_icon} className="w-10 h-10 rounded-full border border-white/20" alt="" />
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-sm truncate">{item.fullName || item.name}</p>
+                            <p className="text-[10px] opacity-60 truncate">
+                                {isGroupObj ? `${item.members?.length || 0} members` : (item.bio || "Available")}
+                            </p>
+                        </div>
+
+                        {/* 3 DOTS MENU */}
+                        <div className="relative ml-auto flex items-center gap-2" onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
+                           <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpenMenuId(openMenuId === item._id ? null : item._id); }} className="text-xl font-bold p-1 hover:bg-black/10 rounded-full opacity-60 hover:opacity-100 transition-opacity flex items-center justify-center w-8 h-8">⋮</button>
+                           {openMenuId === item._id && (
+                             <div className="absolute top-10 right-0 w-32 bg-white border border-gray-200 rounded-xl shadow-2xl z-50 overflow-hidden text-sm font-bold flex flex-col py-1 animate-in fade-in zoom-in-95">
+                                <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleArchiveChat(item._id); setOpenMenuId(null); }} className="text-left px-4 py-3 hover:bg-gray-100 text-black transition-colors">
+                                   Unarchive
+                                </button>
+                                {!isGroupObj && (
+                                  <>
+                                   <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleBlockUser(item._id); setOpenMenuId(null); }} className="text-left px-4 py-3 hover:bg-gray-100 transition-colors border-t border-gray-100 text-red-600">
+                                      {authUser?.blockedUsers?.includes(item._id) ? "Unblock" : "Block"}
+                                   </button>
+                                   <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpenMenuId(null); handleDeleteChat(e, item._id); }} className="text-left px-4 py-3 hover:bg-red-50 text-red-600 transition-colors border-t border-gray-100">
+                                      Delete
+                                   </button>
+                                  </>
+                                )}
+                             </div>
+                           )}
+                        </div>
+                    </div>
+                );
+            })}
+            
+            {(!authUser?.archivedChats || authUser.archivedChats.length === 0) && (
+                <div className="text-center mt-5 opacity-50 text-xs">No archived chats</div>
             )}
             </>
         )}

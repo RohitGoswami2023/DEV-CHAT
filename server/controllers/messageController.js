@@ -81,7 +81,7 @@ export const getMyChats = async (req, res) => {
     // 3. Fetch User Details
     const users = await User.find({
       _id: { $in: Array.from(userMap.keys()) },
-    }).select("_id fullName profilePic bio");
+    }).select("_id fullName profilePic bio blockedUsers");
 
     res.json({ success: true, users, unseen });
   } catch (err) {
@@ -251,13 +251,15 @@ export const deletePrivateMessage = async (req, res) => {
       message.deletedForEveryone = true;
       await message.save();
 
-      const payload = {
-        messageId,
-        chatId: senderId === userId ? receiverId : senderId,
-      };
+      const senderSocketId = userSocketMap[senderId];
+      if (senderSocketId) {
+        io.to(senderSocketId).emit("messageDeleted", { messageId, chatId: receiverId });
+      }
 
-      io.to(userSocketMap[senderId])?.emit("messageDeleted", payload);
-      io.to(userSocketMap[receiverId])?.emit("messageDeleted", payload);
+      const receiverSocketId = userSocketMap[receiverId];
+      if (receiverSocketId) {
+        io.to(receiverSocketId).emit("messageDeleted", { messageId, chatId: senderId });
+      }
 
       return res.json({ success: true });
     }
