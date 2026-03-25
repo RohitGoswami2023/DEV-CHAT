@@ -13,7 +13,7 @@ export const AuthProvider = ({ children }) => {
   const [authUser, setAuthUser] = useState(null);
   const [onlineUsers, setOnlineUsers] = useState([]);
 
-  // 🔥 ADDED: Loading state to prevent blank screen/redirects on refresh
+  // Loading state to prevent blank screen/redirects on refresh
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
   const socketRef = useRef(null);
@@ -68,7 +68,7 @@ export const AuthProvider = ({ children }) => {
       setToken(null);
       delete axios.defaults.headers.common.Authorization;
     } finally {
-      setIsCheckingAuth(false); // ✅ Stop loading when done
+      setIsCheckingAuth(false); // Stop loading when done
     }
   };
 
