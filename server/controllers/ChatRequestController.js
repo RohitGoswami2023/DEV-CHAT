@@ -160,12 +160,21 @@ export const deleteChatRequest = async (req, res) => {
   res.json({ success: true, message: "Request deleted" });
 };
 
-// ---------------- GET MY REQUESTS ----------------
 export const getMyRequests = async (req, res) => {
   const requests = await ChatRequest.find({
     receiver: req.user._id,
     status: "pending",
   }).populate("sender", "fullName profilePic publicUserId");
+
+  res.json({ success: true, requests });
+};
+
+// ---------------- GET OUTGOING REQUESTS ----------------
+export const getOutgoingRequests = async (req, res) => {
+  const requests = await ChatRequest.find({
+    sender: req.user._id,
+    status: "pending",
+  }).populate("receiver", "fullName profilePic publicUserId");
 
   res.json({ success: true, requests });
 };

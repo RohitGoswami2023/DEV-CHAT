@@ -10,6 +10,7 @@ export const ChatProvider = ({ children }) => {
   const [groups, setGroups] = useState([]);
   const [privateChats, setPrivateChats] = useState([]);
   const [chatRequests, setChatRequests] = useState([]);
+  const [outgoingRequests, setOutgoingRequests] = useState([]);
   const [blockedUsers, setBlockedUsers] = useState([]); 
   const [mutedChats, setMutedChats] = useState([]); 
   
@@ -53,8 +54,12 @@ export const ChatProvider = ({ children }) => {
 
   const fetchChatRequests = async () => {
     try {
-      const { data } = await axios.get("/api/chat-requests/incoming"); 
-      if (data.success) setChatRequests(data.requests);
+      const [inRes, outRes] = await Promise.all([
+          axios.get("/api/chat-requests/incoming"),
+          axios.get("/api/chat-requests/outgoing")
+      ]);
+      if (inRes.data.success) setChatRequests(inRes.data.requests);
+      if (outRes.data.success) setOutgoingRequests(outRes.data.requests);
     } catch (error) { console.error(error); }
   };
 
@@ -179,6 +184,16 @@ export const ChatProvider = ({ children }) => {
         setChatRequests((prev) => prev.filter((r) => r._id !== requestId));
       }
     } catch (error) { toast.error("Failed"); }
+  };
+
+  const cancelChatRequest = async (requestId) => {
+    try {
+      const { data } = await axios.delete(`/api/chat-requests/${requestId}`);
+      if (data.success) {
+        toast.success("Request cancelled");
+        setOutgoingRequests((prev) => prev.filter((r) => r._id !== requestId));
+      }
+    } catch (error) { toast.error("Failed to cancel request"); }
   };
 
   const approveGroupJoinRequest = async (groupId, userId) => {
@@ -416,12 +431,22 @@ export const ChatProvider = ({ children }) => {
 
   return (
     <ChatContext.Provider value={{ 
-        groups, privateChats, chatRequests, blockedUsers, activeChat, setActiveChat, messages, 
-        unseenMessages, fetchMessages, sendMessage, deleteMessage, 
-        sendChatRequest, acceptChatRequest, rejectChatRequest,
+        groups, privateChats, chatRequests, blockedUsers, activeChat, setActiveChat, messages,
+        unseenMessages, fetchMessages, sendMessage, deleteMessage,
+        showRightSidebar,
+        outgoingRequests,
+        toggleRightSidebar,
+        fetchGroups,
+        fetchPrivateChats,
+        fetchChatRequests,
+        fetchBlockedUsers,
+        sendChatRequest,
+        acceptChatRequest,
+        rejectChatRequest,
+        cancelChatRequest,
         approveGroupJoinRequest, rejectGroupJoinRequest,
         toggleBlockUser, toggleMuteChat, mutedChats, 
-        showRightSidebar, toggleRightSidebar, fetchGroups, toggleArchiveChat
+        toggleArchiveChat
     }}>
       {children}
     </ChatContext.Provider>

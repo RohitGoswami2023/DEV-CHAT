@@ -81,9 +81,13 @@ export const getMyChats = async (req, res) => {
         }
     }
 
+    // 🔥 2.5 Ensure users hidden by the active user are explicitly ignored.
+    const hiddenSet = new Set(req.user.hiddenChats || []);
+    const finalUserIds = Array.from(userMap.keys()).filter(id => !hiddenSet.has(id));
+
     // 3. Fetch User Details
     const users = await User.find({
-      _id: { $in: Array.from(userMap.keys()) },
+      _id: { $in: finalUserIds },
     }).select("_id fullName profilePic bio blockedUsers");
 
     res.json({ success: true, users, unseen });
@@ -204,6 +208,12 @@ export const sendMessage = async (req, res) => {
     if (videoUrl) {
        expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // exactly 24 hours
     }
+
+    // Unhide the chat automatically for both parties upon message exchange
+    await User.updateMany(
+      { _id: { $in: [senderId, receiverId] } },
+      { $pull: { hiddenChats: { $in: [senderId.toString(), receiverId.toString()] } } }
+    );
 
     const newMessage = await Message.create({
       senderId,
@@ -335,6 +345,10 @@ export const deletePrivateChat = async (req, res) => {
       },
       { $addToSet: { deletedFor: myId } }
     );
+
+    await User.findByIdAndUpdate(myId, {
+      $addToSet: { hiddenChats: otherId.toString() }
+    });
 
     res.json({ success: true });
   } catch (err) {

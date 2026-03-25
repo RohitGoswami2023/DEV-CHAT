@@ -25,7 +25,10 @@ const Sidebar = () => {
     showRightSidebar,    
     toggleRightSidebar,
     toggleArchiveChat,
-    toggleBlockUser
+    toggleBlockUser,
+    outgoingRequests = [],
+    cancelChatRequest,
+    fetchPrivateChats
   } = useContext(ChatContext);
 
   const [tab, setTab] = useState("groups"); 
@@ -57,8 +60,7 @@ const Sidebar = () => {
         if (activeChat?.data?._id === chatId) {
            setActiveChat(null);
         }
-        setTab("requests"); // Temporary UI pop to force refresh, no fetchPrivateChats exposed
-        setTimeout(() => setTab("chats"), 10);
+        await fetchPrivateChats();
       }
     } catch (error) { toast.error("Failed to delete conversation"); }
   };
@@ -108,7 +110,7 @@ const Sidebar = () => {
                               archivedChats.reduce((sum, c) => sum + (unseenMessages[c._id] || 0), 0);
   const totalArchivedItems = archivedGroups.length + archivedChats.length;
   
-  const totalRequests = chatRequests.length + groupRequests.length;
+  const totalRequests = chatRequests.length + groupRequests.length + outgoingRequests.length;
 
   const handleLogout = () => {
     if (window.confirm("Are you sure you want to logout?")) logout();
@@ -157,7 +159,7 @@ const Sidebar = () => {
       </div>
 
       {/* TABS */}
-      <div className="flex p-2 gap-1 bg-white/5 mx-2 mt-2 rounded-xl">
+      <div className="flex p-2 gap-2 bg-white/5 mx-2 mt-2 rounded-xl overflow-x-auto hide-scrollbar whitespace-nowrap scroll-smooth">
         <button
           onClick={() => { setTab("groups"); setSearch(""); }}
           className={`flex-1 py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-all ${
@@ -212,16 +214,16 @@ const Sidebar = () => {
         
         {/* === REQUESTS TAB === */}
         {tab === "requests" && (
-            <div className="space-y-2">
+            <div className="space-y-4">
             
-            {/* 1. Personal Chat Requests */}
-            {chatRequests.length > 0 && <p className="text-[10px] font-bold opacity-40 uppercase ml-2 mt-2">Friend Requests</p>}
+            {/* 1. Received Personal Chat Requests */}
+            {chatRequests.length > 0 && <p className="text-[10px] font-bold opacity-40 uppercase ml-2 mt-2">Received Friend Requests</p>}
             {chatRequests.map((req) => (
                 <div key={req._id} className={`bg-white/10 p-3 rounded-xl flex items-center gap-3 ${popAnimationClass}`}>
-                    <img src={req.sender.profilePic || assets.avatar_icon} className="w-10 h-10 rounded-full border border-white/20" alt="" />
+                    <img src={req.sender?.profilePic || assets.avatar_icon} className="w-10 h-10 rounded-full border border-white/20" alt="" />
                     <div className="flex-1 min-w-0">
-                        <p className="font-bold text-sm truncate">{req.sender.fullName}</p>
-                        <p className="text-[10px] opacity-60">@{req.sender.publicUserId}</p>
+                        <p className="font-bold text-sm truncate">{req.sender?.fullName || "User"}</p>
+                        <p className="text-[10px] opacity-60">@{req.sender?.publicUserId}</p>
                     </div>
                     <div className="flex gap-2">
                         <button onClick={() => handleAcceptRequest(req._id)} className="bg-green-500 hover:bg-green-600 hover:scale-110 active:scale-90 text-white p-1.5 rounded-full transition"><span className="text-xs font-bold">✓</span></button>
@@ -230,8 +232,23 @@ const Sidebar = () => {
                 </div>
             ))}
 
-            {/* 2. Group Join Requests */}
-            {groupRequests.length > 0 && <p className="text-[10px] font-bold opacity-40 uppercase ml-2 mt-4">Group Join Requests</p>}
+            {/* 2. Sent Personal Chat Requests */}
+            {outgoingRequests.length > 0 && <p className="text-[10px] font-bold opacity-40 uppercase ml-2 pt-2 border-t border-white/5">Sent Friend Requests</p>}
+            {outgoingRequests.map((req) => (
+                <div key={req._id} className={`bg-white/5 p-3 rounded-xl flex items-center gap-3 border border-white/10 ${popAnimationClass}`}>
+                    <img src={req.receiver?.profilePic || assets.avatar_icon} className="w-10 h-10 rounded-full border border-white/20 opacity-80" alt="" />
+                    <div className="flex-1 min-w-0">
+                        <p className="font-bold text-sm truncate opacity-80">{req.receiver?.fullName || "User"}</p>
+                        <p className="text-[10px] opacity-40">Pending...</p>
+                    </div>
+                    <div className="flex gap-2">
+                        <button onClick={() => cancelChatRequest(req._id)} className="bg-gray-600 hover:bg-red-600 hover:scale-110 active:scale-90 text-white p-1.5 rounded-full transition"><span className="text-[10px] font-bold px-2">Cancel</span></button>
+                    </div>
+                </div>
+            ))}
+
+            {/* 3. Group Join Requests */}
+            {groupRequests.length > 0 && <p className="text-[10px] font-bold opacity-40 uppercase ml-2 mt-4 border-t border-white/5 pt-2">Group Join Requests</p>}
             {groupRequests.map((req) => (
                  <div key={`${req.groupId}-${req.user._id}`} className={`bg-white/10 p-3 rounded-xl flex items-center gap-3 border border-purple-500/20 ${popAnimationClass}`}>
                     <img src={req.user.profilePic || assets.avatar_icon} className="w-10 h-10 rounded-full border border-white/20" alt="" />
@@ -246,8 +263,8 @@ const Sidebar = () => {
                  </div>
             ))}
 
-            {chatRequests.length === 0 && groupRequests.length === 0 && (
-                 <div className="text-center mt-10 opacity-40 text-xs">No pending requests</div>
+            {chatRequests.length === 0 && outgoingRequests.length === 0 && groupRequests.length === 0 && (
+                 <div className="text-center mt-10 opacity-40 text-xs font-bold">No pending requests</div>
             )}
             </div>
         )}

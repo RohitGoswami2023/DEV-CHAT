@@ -6,6 +6,7 @@ import {
   rejectChatRequest,
   deleteChatRequest,
   getMyRequests,
+  getOutgoingRequests,
 } from "../controllers/ChatRequestController.js";
 
 const router = express.Router();
@@ -15,5 +16,6 @@ router.post("/accept", protectRoute, acceptChatRequest);
 router.post("/reject", protectRoute, rejectChatRequest);
 router.delete("/:requestId", protectRoute, deleteChatRequest);
 router.get("/incoming", protectRoute, getMyRequests);
+router.get("/outgoing", protectRoute, getOutgoingRequests);
 
 export default router;

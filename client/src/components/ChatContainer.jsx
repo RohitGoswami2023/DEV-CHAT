@@ -85,6 +85,7 @@ const ChatContainer = () => {
     fetchMessages,
     toggleArchiveChat,
     toggleBlockUser,
+    fetchPrivateChats,
     privateChats
   } = useContext(ChatContext);
   const { authUser, axios } = useContext(AuthContext);
@@ -197,6 +198,7 @@ const ChatContainer = () => {
       if (data.success) {
         toast.success("Conversation deleted");
         setActiveChat(null);
+        await fetchPrivateChats();
       }
     } catch (error) {
       toast.error("Failed to delete conversation");
@@ -598,7 +600,7 @@ const ChatContainer = () => {
             </p>
         </div>
       ) : (
-        <div className="px-4 lg:px-6 py-4 border-t bg-white/50 relative">
+        <div className="px-4 lg:px-6 pt-3 pb-6 lg:py-4 border-t bg-white/50 relative">
           {(previewImage || previewVideo || (audioUrl && !isRecording)) && (
             <div className="absolute bottom-full left-0 mb-2 p-4 bg-white/90 backdrop-blur shadow-lg rounded-t-2xl flex items-center gap-4 w-full lg:w-auto">
               {previewImage && (
