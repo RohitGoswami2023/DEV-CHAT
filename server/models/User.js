@@ -90,6 +90,7 @@ const userSchema = new mongoose.Schema(
     isSearchable: { type: Boolean, default: true }, //
     allowChatRequests: { type: Boolean, default: true }, //
     blockedUsers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+    fcmToken: { type: String, default: "" }, // FIREBASE CLOUD MESSAGING TOKEN
   },
   { timestamps: true }
 );

@@ -20,6 +20,10 @@ const groupMessageSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+    audio: { type: String, default: "" },
+    video: { type: String, default: "" },
+    isViewOnce: { type: Boolean, default: false },
+    expiresAt: { type: Date, index: { expires: 0 } },
     replyTo: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "GroupMessage",

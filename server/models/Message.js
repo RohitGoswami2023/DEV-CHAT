@@ -4,6 +4,10 @@ const messageSchema = new mongoose.Schema({
     receiverId: { type: mongoose.Schema.Types.ObjectId, ref: "User", require: true },
     text: { type: String },
     image: { type: String },
+    audio: { type: String },
+    video: { type: String },
+    isViewOnce: { type: Boolean, default: false },
+    expiresAt: { type: Date, index: { expires: 0 } },
     seen: { type: Boolean, default: false },
     status: {
       type: String,

@@ -2,6 +2,7 @@ import { createContext, useEffect, useState, useRef } from "react";
 import axios from "axios";
 import toast from "react-hot-toast";
 import { io } from "socket.io-client";
+import { requestFirebaseToken, onMessageListener } from "../src/lib/firebase";
 
 const backendUrl = import.meta.env.VITE_BACKEND_URL;
 axios.defaults.baseURL = backendUrl;
@@ -226,6 +227,38 @@ export const AuthProvider = ({ children }) => {
       setIsCheckingAuth(false); // No token, stop loading immediately
     }
   }, []);
+
+  // ================= FIREBASE PUSH NOTIFICATION SYNC =================
+  useEffect(() => {
+    let unsubscribe = null;
+
+    if (authUser) {
+       const syncFCM = async () => {
+          const fcmToken = await requestFirebaseToken();
+          if (fcmToken) {
+             try {
+                await axios.put("/api/auth/fcm-token", { token: fcmToken });
+                console.log("✅ FCM Token Synced Natively");
+             } catch (err) {
+                console.error("FCM Sync Error:", err);
+             }
+          }
+       };
+       syncFCM();
+       
+       // Handle foreground pushes
+       unsubscribe = onMessageListener((payload) => {
+           toast.success(
+              `${payload.notification.title}: ${payload.notification.body}`, 
+              { duration: 5000, icon: '🔔' }
+           );
+       });
+    }
+
+    return () => {
+        if (unsubscribe) unsubscribe();
+    };
+  }, [authUser]);
 
   return (
     <AuthContext.Provider

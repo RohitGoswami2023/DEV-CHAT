@@ -1,8 +1,11 @@
 import Message from "../models/Message.js";
 import User from "../models/User.js";
 import ChatRequest from "../models/ChatRequest.js"; // 🔥 1. IMPORT THIS
+import GroupMessage from "../models/GroupMessage.js";
+import Group from "../models/Group.js";
 import cloudinary from "../lib/cloudinary.js";
 import { io, userSocketMap } from "../server.js";
+import admin from "../lib/firebaseAdmin.js";
 import crypto from "crypto";
 import dotenv from "dotenv";
 
@@ -152,7 +155,7 @@ export const sendMessage = async (req, res) => {
   try {
     const senderId = req.user._id;
     const receiverId = req.params.id;
-    const { text, image, replyToGroupMsgId, replyTo } = req.body;
+    const { text, image, audio, video, isViewOnce, replyToGroupMsgId, replyTo } = req.body;
 
     // --- BLOCK CHECK ---
     const receiver = await User.findById(receiverId);
@@ -167,11 +170,27 @@ export const sendMessage = async (req, res) => {
         return res.status(403).json({ message: "You blocked this user. Unblock to send." });
     }
     // -------------------
+    
+    // --- PAYLOAD SIZE CHECKS ---
+    if (video && video.length > 14000000) { // ~13.3MB Base64 string for a 10MB file
+       return res.status(413).json({ success: false, message: "Video maximum size is 10MB limit." });
+    }
 
     let imageUrl = null;
+    let audioUrl = null;
+    let videoUrl = null;
+
     if (image) {
-      const upload = await cloudinary.uploader.upload(image);
+      const upload = await cloudinary.uploader.upload(image, { resource_type: "auto" });
       imageUrl = upload.secure_url;
+    }
+    if (audio) {
+      const upload = await cloudinary.uploader.upload(audio, { resource_type: "auto" });
+      audioUrl = upload.secure_url;
+    }
+    if (video) {
+      const upload = await cloudinary.uploader.upload(video, { resource_type: "auto" });
+      videoUrl = upload.secure_url;
     }
 
     const encryptedText = text ? encryptText(text) : null;
@@ -180,11 +199,21 @@ export const sendMessage = async (req, res) => {
     const isReceiverOnline = userSocketMap[receiverId];
     const initialStatus = isReceiverOnline ? "delivered" : "sent";
 
+    // 24 Hour Expiration logic natively
+    let expiresAt = undefined;
+    if (videoUrl) {
+       expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // exactly 24 hours
+    }
+
     const newMessage = await Message.create({
       senderId,
       receiverId,
       text: encryptedText,
       image: imageUrl,
+      audio: audioUrl,
+      video: videoUrl,
+      isViewOnce: isViewOnce || false,
+      expiresAt: expiresAt,
       replyToGroupMsg: replyToGroupMsgId || null,
       replyTo: replyTo || null,
       status: initialStatus, // ✅ Set Sent or Delivered
@@ -214,6 +243,22 @@ export const sendMessage = async (req, res) => {
     const socketId = userSocketMap[receiverId];
     if (socketId) {
       io.to(socketId).emit("newMessage", decryptedMessage);
+    } else {
+      // Offline Notification
+      if (receiver.fcmToken) {
+          try {
+             await admin.messaging().send({
+                 token: receiver.fcmToken,
+                 notification: {
+                     title: `${sender.fullName}`,
+                     body: isViewOnce ? '📷 View Once Message' : (text ? text : (image ? '📷 Photo' : (video ? '🎥 Video' : (audio ? '🎤 Voice Message' : 'New Message'))))
+                 },
+                 data: { chatId: senderId.toString(), type: "private" }
+             });
+          } catch (err) { 
+             console.error("FCM Send Error:", err.message); 
+          }
+      }
     }
 
     res.json({ success: true, message: decryptedMessage });
@@ -294,5 +339,57 @@ export const deletePrivateChat = async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+/* ================= CONSUME VIEW ONCE RECORD ================= */
+export const consumeViewOnce = async (req, res) => {
+  try {
+    const { messageId } = req.params;
+
+    let message = await Message.findById(messageId);
+    let isGroup = false;
+
+    if (!message) {
+       message = await GroupMessage.findById(messageId);
+       isGroup = true;
+    }
+
+    if (!message) {
+       return res.status(404).json({ success: false, message: "Message not found" });
+    }
+
+    if (!message.isViewOnce) {
+       return res.status(400).json({ success: false, message: "Not a view-once message" });
+    }
+
+    // Permanently wipe the media payloads
+    message.image = null;
+    message.video = null;
+    
+    await message.save();
+
+    // Broadcast the exact timestamp/destruction state
+    if (isGroup) {
+       const group = await Group.findById(message.group);
+       if (group) {
+          group.members.forEach((memberId) => {
+             const socketId = userSocketMap[memberId.toString()];
+             if (socketId) {
+                io.to(socketId).emit("viewOnceConsumed", { messageId, chatId: group._id, isGroup: true });
+             }
+          });
+       }
+    } else {
+       const senderSocket = userSocketMap[message.senderId.toString()];
+       const receiverSocket = userSocketMap[message.receiverId.toString()];
+       
+       if (senderSocket) io.to(senderSocket).emit("viewOnceConsumed", { messageId, chatId: message.receiverId.toString(), isGroup: false });
+       if (receiverSocket) io.to(receiverSocket).emit("viewOnceConsumed", { messageId, chatId: message.senderId.toString(), isGroup: false });
+    }
+
+    res.json({ success: true });
+  } catch(error) {
+    res.status(500).json({ success: false, message: error.message });
   }
 };

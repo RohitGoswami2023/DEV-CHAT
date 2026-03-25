@@ -249,7 +249,7 @@ export const ChatProvider = ({ children }) => {
             let senderName = "Someone";
 
             if (msg.group || msg.groupId) {
-                let gName = msg.group?.name; 
+                let gName = msg.group?.name;
                 if (!gName) {
                     const gId = msg.group?._id || msg.group || msg.groupId;
                     const foundGroup = currentGroups.find(g => g._id === gId);
@@ -265,7 +265,27 @@ export const ChatProvider = ({ children }) => {
                 }
                 title = `${senderName} sent you a message`;
             }
-            
+
+            if (typeof Notification !== "undefined" && Notification.permission === "granted") {
+                try {
+                    const bodyStr = msg.isViewOnce ? '📷 View Once Message' : (msg.text ? msg.text : (msg.image ? '📷 Photo' : (msg.video ? '🎥 Video' : (msg.audio ? '🎤 Voice Message' : 'New Message'))));
+                    
+                    if ("serviceWorker" in navigator) {
+                        navigator.serviceWorker.ready.then((registration) => {
+                            registration.showNotification(title, { 
+                                body: bodyStr, 
+                                icon: '/vite.svg',
+                                vibrate: [200, 100, 200]
+                            });
+                        }).catch(err => {
+                             new Notification(title, { body: bodyStr, icon: '/vite.svg' });
+                        });
+                    } else {
+                        new Notification(title, { body: bodyStr, icon: '/vite.svg' });
+                    }
+                } catch(e) { console.log("Failed to show foreground Native Notification:", e); }
+            }
+
             toast.custom((t) => (
               <div
                 className={`${
@@ -300,7 +320,14 @@ export const ChatProvider = ({ children }) => {
     const onDeleted = ({ messageId, chatId }) => {
       const currentActiveChat = activeChatRef.current;
       if (currentActiveChat && currentActiveChat.data._id === chatId) {
-        setMessages((prev) => prev.map((m) => (m._id === messageId ? { ...m, deleted: true, text: null, image: null } : m)));
+        setMessages((prev) => prev.map((m) => (m._id === messageId ? { ...m, deleted: true, text: null, image: null, video: null, audio: null } : m)));
+      }
+    };
+
+    const onViewOnceConsumed = ({ messageId, chatId }) => {
+      const currentActiveChat = activeChatRef.current;
+      if (currentActiveChat && currentActiveChat.data._id === chatId) {
+        setMessages((prev) => prev.map((m) => (m._id === messageId ? { ...m, image: null, video: null } : m)));
       }
     };
 
@@ -362,6 +389,7 @@ export const ChatProvider = ({ children }) => {
     socket.on("blockListUpdate", onBlockListUpdate);
     socket.on("blockedBy", onBlockedBy);
     socket.on("unblockedBy", onUnblockedBy);
+    socket.on("viewOnceConsumed", onViewOnceConsumed);
 
     return () => {
       socket.off("newMessage", onNewMessage);
@@ -378,6 +406,7 @@ export const ChatProvider = ({ children }) => {
       socket.off("blockListUpdate", onBlockListUpdate);
       socket.off("blockedBy", onBlockedBy);
       socket.off("unblockedBy", onUnblockedBy);
+      socket.off("viewOnceConsumed", onViewOnceConsumed);
     };
   }, [socket, authUser]);
 

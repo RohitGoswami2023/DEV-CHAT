@@ -16,6 +16,7 @@ import {
   getBlockedUsers,
   toggleMute,
   toggleArchive,
+  updateFcmToken,
 } from "../controllers/userController.js";
 import { protectRoute } from "../middleware/auth.js";
 
@@ -37,6 +38,7 @@ userRouter.post("/reset-password", resetPassword);
 // Profile & auth
 userRouter.put("/update-profile", protectRoute, updateProfile);
 userRouter.get("/check", protectRoute, checkAuth);
+userRouter.put("/fcm-token", protectRoute, updateFcmToken);
 userRouter.get("/users", protectRoute, getAllUsers);
 
 // --- FIXED ROUTES TO MATCH FRONTEND ---

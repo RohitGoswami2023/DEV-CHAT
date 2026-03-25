@@ -24,8 +24,8 @@ app.set("trust proxy", 1);
 
 // ================= STANDARD MIDDLEWARE (Order Matters!) =================
 // 1. Body Parsers MUST come first
-app.use(express.json({ limit: "5mb" }));
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: "15mb" }));
+app.use(express.urlencoded({ limit: "15mb", extended: true }));
 
 // 2. CORS (Allow Frontend)
 app.use(

@@ -258,6 +258,23 @@ export const checkAuth = (req, res) => {
   res.json({ success: true, user: req.user });
 };
 
+// ---------------- FCM TOKEN SYNC ----------------
+export const updateFcmToken = async (req, res) => {
+  try {
+    const { token } = req.body;
+    if (!token) return res.status(400).json({ success: false, message: "Token is required" });
+
+    const user = await User.findByIdAndUpdate(
+      req.user._id,
+      { fcmToken: token },
+      { new: true }
+    );
+    res.json({ success: true, message: "FCM Token synchronized successfully" });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 // ---------------- GET ALL USERS ----------------
 export const getAllUsers = async (req, res) => {
   try {
