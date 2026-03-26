@@ -133,13 +133,13 @@ const Sidebar = () => {
     <div className="h-full w-full lg:w-[340px] bg-white/20 backdrop-blur-xl flex flex-col border-r overflow-hidden" onClick={() => { setOpenMenuId(null); setShowBell(false); }}>
 
       {/* HEADER */}
-      <div className="flex items-center justify-between p-5 border-b border-white/10 bg-white/5 backdrop-blur-md">
-        <div className="flex items-center gap-3">
-          <img src={assets.logo} className="w-10 drop-shadow-md" alt="logo" />
+      <div className="flex items-center justify-between p-4 border-b">
+        <div className="flex items-center gap-2">
+          <img src={assets.logo} className="w-9" alt="logo" />
           <button 
             onClick={(e) => { e.stopPropagation(); setTab("security"); }}
             title="Settings & Security"
-            className={`p-2.5 rounded-xl transition-all shadow-lg ${tab === "security" ? "bg-gradient-to-r from-purple-600 to-indigo-600 text-white" : "bg-white/30 hover:bg-white text-indigo-600"}`}
+            className={`p-2 rounded-xl transition-all shadow-sm ${tab === "security" ? "bg-purple-600 text-white" : "bg-white/40 hover:bg-white text-purple-600"}`}
           >
             <Settings className="w-5 h-5" />
           </button>
@@ -230,23 +230,23 @@ const Sidebar = () => {
       )}
 
       {/* TABS */}
-      <div className="flex p-1.5 gap-1.5 bg-black/5 mx-3 mt-3 rounded-xl overflow-x-auto hide-scrollbar border border-white/10">
+      <div className="flex p-2 gap-2 bg-white/5 mx-2 mt-2 rounded-xl overflow-x-auto hide-scrollbar whitespace-nowrap scroll-smooth">
         <button
           onClick={() => { setTab("groups"); setSearch(""); }}
-          className={`flex-1 py-2 rounded-lg text-[11px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all ${tab === "groups" ? "bg-indigo-600 text-white shadow-lg scale-100" : "text-gray-600 hover:bg-white/20 active:scale-95"
+          className={`flex-1 py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-all ${tab === "groups" ? "bg-purple-600 text-white shadow-md scale-105" : "hover:bg-white/10 hover:scale-105 active:scale-95"
             }`}
         >
           Groups
-          {totalGroupUnseen > 0 && <span className="bg-red-500 text-white text-[9px] w-4 h-4 rounded-full flex items-center justify-center shadow-sm">{totalGroupUnseen}</span>}
+          {totalGroupUnseen > 0 && <span className="bg-red-500 text-white text-[9px] w-4 h-4 rounded-full flex items-center justify-center">{totalGroupUnseen}</span>}
         </button>
 
         <button
           onClick={() => { setTab("chats"); setSearch(""); }}
-          className={`flex-1 py-2 rounded-lg text-[11px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all ${tab === "chats" ? "bg-indigo-600 text-white shadow-lg scale-100" : "text-gray-600 hover:bg-white/20 active:scale-95"
+          className={`flex-1 py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-all ${tab === "chats" ? "bg-purple-600 text-white shadow-md scale-105" : "hover:bg-white/10 hover:scale-105 active:scale-95"
             }`}
         >
           Chats
-          {totalChatUnseen > 0 && <span className="bg-red-500 text-white text-[9px] w-4 h-4 rounded-full flex items-center justify-center shadow-sm">{totalChatUnseen}</span>}
+          {totalChatUnseen > 0 && <span className="bg-red-500 text-white text-[9px] w-4 h-4 rounded-full flex items-center justify-center">{totalChatUnseen}</span>}
         </button>
 
         <button

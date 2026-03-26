@@ -54,14 +54,10 @@ const AudioMessage = ({ src, isMine }) => {
   };
 
   return (
-    <div className={`flex items-center gap-3 w-[220px] lg:w-[280px] py-1 px-2 rounded-xl backdrop-blur-sm shadow-inner ${isMine ? 'bg-black/5 text-gray-800' : 'bg-black/10 text-white'}`}>
+    <div className={`flex items-center gap-2 lg:gap-3 w-[220px] lg:w-[260px] pt-1 select-none ${isMine ? 'text-gray-800' : 'text-white'}`}>
       <audio ref={audioRef} src={src} preload="metadata" />
-      <button onClick={togglePlay} className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-all ${isMine ? 'bg-indigo-500 text-white hover:bg-indigo-600' : 'bg-white/20 text-white hover:bg-white/30'} shadow-sm active:scale-90`}>
-        {isPlaying ? (
-          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
-        ) : (
-          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-        )}
+      <button onClick={togglePlay} className="flex-shrink-0 text-3xl opacity-80 hover:opacity-100 transition-opacity outline-none">
+        {isPlaying ? "⏸" : "▶"}
       </button>
       <div className="flex flex-col flex-1 gap-1">
         <input
@@ -69,12 +65,14 @@ const AudioMessage = ({ src, isMine }) => {
           min="0" max="100"
           value={isNaN(progress) ? 0 : progress}
           onChange={handleSeek}
-          className={`w-full h-1 cursor-pointer rounded-full appearance-none bg-black/10 outline-none ${isMine ? 'accent-indigo-500' : 'accent-white'}`}
+          className={`w-full h-1.5 cursor-pointer rounded-full appearance-none bg-black/20 outline-none ${isMine ? 'accent-gray-600' : 'accent-white'}`}
         />
-        <div className="flex justify-between items-center text-[9px] font-bold opacity-60 tracking-tighter">
+        <div className="flex justify-between items-center text-[10px] font-bold opacity-70 px-1">
           <span>{formatTime(audioRef.current?.currentTime || 0)}</span>
-          <span>{formatTime(duration)}</span>
         </div>
+      </div>
+      <div className={`flex-shrink-0 w-8 h-8 rounded-full flex justify-center items-center text-sm ml-1 ${isMine ? 'bg-black/10' : 'bg-black/20'}`}>
+        🎤
       </div>
     </div>
   );
@@ -85,11 +83,11 @@ const MessageItem = React.memo(({ msg, isMine, isGroup, authUser, onRightClick, 
   return (
     <div className={`flex w-full mb-4 px-1 lg:px-4 ${isMine ? "justify-end" : "justify-start"}`}>
       <div onContextMenu={(e) => onRightClick(e, msg)}
-        className={`relative group max-w-[85%] lg:max-w-[60%] px-4 py-2.5 rounded-2xl shadow-xl transition-all duration-200 border-t border-white/10
+        className={`relative group max-w-[85%] lg:max-w-[520px] px-5 py-3 rounded-2xl shadow transition-all 
         ${isMine 
-          ? "bg-gradient-to-br from-indigo-500/90 to-purple-600/90 text-white rounded-tr-none shadow-indigo-500/10" 
-          : "bg-white/90 backdrop-blur-md text-gray-800 rounded-tl-none shadow-black/5 border border-white/50"
-        } ${openMsgMenu === msg._id ? "ring-2 ring-indigo-400 z-50" : "z-0"}`}>
+          ? "bg-gray-200 text-black rounded-tr-none" 
+          : "bg-green-600 text-white rounded-tl-none"
+        } ${openMsgMenu === msg._id ? "z-50" : "z-0"}`}>
 
         {!msg.deleted && (
           <>
@@ -668,31 +666,45 @@ const ChatContainer = () => {
 
       {/* MESSAGES */}
       <div 
-        className="flex-1 overflow-y-auto px-1 lg:px-4 py-6 custom-scrollbar touch-pan-y bg-cover bg-fixed backdrop-brightness-95"
+        className="flex-1 overflow-y-auto px-4 lg:px-6 py-6 custom-scrollbar touch-pan-y"
         style={{ touchAction: "pan-y" }}
         {...swipeHandlers}
       >
-        <div className="max-w-[860px] mx-auto w-full">
-          {messages.map((msg) => (
-            <MessageItem 
-              key={msg._id}
-              msg={msg}
-              isMine={(msg.sender?._id || msg.senderId) === authUser._id}
-              isGroup={isGroup}
-              authUser={authUser}
-              onRightClick={onRightClick}
-              openMsgMenu={openMsgMenu}
-              setOpenMsgMenu={setOpenMsgMenu}
-              setReplyingTo={setReplyingTo}
-              handleReplyPrivately={handleReplyPrivately}
-              handleDeleteFromMenu={handleDeleteFromMenu}
-              setViewOnceModal={setViewOnceModal}
-              callUser={callUser}
-              formatMessageTime={formatMessageTime}
-              renderStatusIcon={renderStatusIcon}
-              activeChat={activeChat}
-            />
-          ))}
+        <div className="max-w-[820px] mx-auto space-y-4">
+          {(() => {
+            const filteredMessages = [];
+            for (let i = 0; i < messages.length; i++) {
+              const current = messages[i];
+              const next = messages[i + 1];
+              
+              // If current is a call_log and next is also a call_log of same status, skip current
+              if (current.messageType === "call_log" && next && next.messageType === "call_log" && current.callLog?.status === next.callLog?.status) {
+                continue;
+              }
+              filteredMessages.push(current);
+            }
+            
+            return filteredMessages.map((msg) => (
+              <MessageItem 
+                key={msg._id}
+                msg={msg}
+                isMine={(msg.sender?._id || msg.senderId) === authUser._id}
+                isGroup={isGroup}
+                authUser={authUser}
+                onRightClick={onRightClick}
+                openMsgMenu={openMsgMenu}
+                setOpenMsgMenu={setOpenMsgMenu}
+                setReplyingTo={setReplyingTo}
+                handleReplyPrivately={handleReplyPrivately}
+                handleDeleteFromMenu={handleDeleteFromMenu}
+                setViewOnceModal={setViewOnceModal}
+                callUser={callUser}
+                formatMessageTime={formatMessageTime}
+                renderStatusIcon={renderStatusIcon}
+                activeChat={activeChat}
+              />
+            ));
+          })()}
           <div ref={bottomRef} className="h-4" />
         </div>
       </div>
