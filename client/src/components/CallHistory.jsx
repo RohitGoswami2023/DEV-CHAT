@@ -1,15 +1,24 @@
 import { useContext, useEffect } from "react";
-import { CallContext } from "../../context/CallContext.jsx";
+import { CallContext } from "../context/CallContext.jsx";
 import axios from "axios";
 import { format } from "date-fns";
-import { Phone, PhoneIncoming, PhoneOutgoing, PhoneMissed, Clock } from "lucide-react";
+import { Phone, PhoneIncoming, PhoneOutgoing, PhoneMissed, Clock, Trash2 } from "lucide-react";
+import { AuthContext } from "../context/AuthContext.jsx";
 
 const CallHistory = () => {
-  const { callLogs, fetchCallLogs, formatDuration, callUser } = useContext(CallContext);
+  const { authUser } = useContext(AuthContext);
+  const { callLogs, fetchCallLogs, formatDuration, callUser, deleteCallLog } = useContext(CallContext);
 
   useEffect(() => {
     fetchCallLogs(axios);
   }, []);
+
+  const handleDelete = (e, logId) => {
+    e.stopPropagation();
+    if (window.confirm("Delete this call log?")) {
+      deleteCallLog(axios, logId);
+    }
+  };
 
   const getStatusIcon = (status, isCaller) => {
     if (status === "missed") return <PhoneMissed className="text-red-500 w-4 h-4" />;
@@ -24,20 +33,17 @@ const CallHistory = () => {
         <div className="text-center py-10 text-gray-400 text-sm">No recent calls</div>
       ) : (
         callLogs.map((log) => {
-          const isCaller = log.caller._id === log.receiver._id; // Simplified, in real app check against authUser
-          // Wait, log.caller is a populated user object.
-          const otherUser = log.caller._id === log.receiver._id ? log.receiver : log.caller; 
-          // Actually, let's just check log.caller._id vs authUser? No, log is already filtered.
-          // Correct logic:
-          // if I am the caller, show receiver. If I am receiver, show caller.
+          const isCaller = log.caller._id === authUser._id;
+          const otherUser = isCaller ? log.receiver : log.caller;
+          
           return (
             <div key={log._id} className="flex items-center justify-between p-3 rounded-xl hover:bg-white/40 transition-all group">
               <div className="flex items-center gap-3">
-                <img src={log.caller.profilePic || "/avatar.png"} alt="" className="w-10 h-10 rounded-full object-cover" />
+                <img src={otherUser.profilePic || "/avatar.png"} alt="" className="w-10 h-10 rounded-full object-cover" />
                 <div>
-                  <h3 className="text-sm font-medium">{log.caller.fullName}</h3>
+                  <h3 className="text-sm font-medium">{otherUser.fullName}</h3>
                   <div className="flex items-center gap-1 text-[11px] text-gray-500">
-                    {getStatusIcon(log.status, true)}
+                    {getStatusIcon(log.status, isCaller)}
                     <span>{format(new Date(log.startTime), "MMM d, h:mm a")}</span>
                   </div>
                 </div>
@@ -48,12 +54,20 @@ const CallHistory = () => {
                     <Clock className="w-3 h-3" /> {formatDuration(log.duration)}
                   </span>
                 )}
-                <button 
-                  onClick={() => callUser(log.caller)} 
-                  className="p-2 rounded-full bg-green-500/10 text-green-600 opacity-0 group-hover:opacity-100 transition-opacity"
-                >
-                  <Phone className="w-4 h-4" />
-                </button>
+                <div className="flex gap-1">
+                  <button 
+                    onClick={() => callUser(otherUser)} 
+                    className="p-2 rounded-full bg-green-500/10 text-green-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <Phone className="w-4 h-4" />
+                  </button>
+                  <button 
+                    onClick={(e) => handleDelete(e, log._id)} 
+                    className="p-2 rounded-full bg-red-500/10 text-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             </div>
           );

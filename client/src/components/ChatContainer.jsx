@@ -1,10 +1,13 @@
+// components/ChatContainer.jsx (HMR trigger)
 import React, { useContext, useEffect, useRef, useState } from "react";
 import assets from "../assets/assets";
-import { ChatContext } from "../../context/ChatContext";
-import { AuthContext } from "../../context/AuthContext";
-import { CallContext } from "../../context/CallContext";
+import { ChatContext } from "../context/ChatContext";
+import { AuthContext } from "../context/AuthContext";
+import { useSwipe } from "../hooks/useSwipe";
+import { CallContext } from "../context/CallContext";
 import { formatMessageTime } from "../lib/utils";
 import toast from "react-hot-toast";
+import { Phone, PhoneIncoming, PhoneOutgoing, PhoneMissed, Clock } from "lucide-react";
 
 const AudioMessage = ({ src, isMine }) => {
   const audioRef = useRef(null);
@@ -90,7 +93,39 @@ const ChatContainer = () => {
     privateChats
   } = useContext(ChatContext);
   const { authUser, axios } = useContext(AuthContext);
-  const { callUser } = useContext(CallContext);
+  const { callUser, callActive, callAccepted, duration, formatDuration, call, outgoingCall } = useContext(CallContext);
+  
+  const sendSound = useRef(new Audio("https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3"));
+  const receiveSound = useRef(new Audio("https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3"));
+
+  useEffect(() => {
+    if (messages.length > 0) {
+      const lastMsg = messages[messages.length - 1];
+      if (lastMsg.senderId === authUser._id) {
+        // sendSound.current.play().catch(() => {});
+      } else {
+        receiveSound.current.play().catch(() => {});
+      }
+    }
+  }, [messages.length]);
+
+  // --- MOBILES SWIPE GESTURE HANDLERS ---
+  const swipeHandlers = useSwipe({
+    onSwipeRight: () => {
+      if (window.innerWidth >= 1024) return;
+      if (showRightSidebar) {
+        toggleRightSidebar();
+      } else {
+        setActiveChat(null);
+      }
+    },
+    onSwipeLeft: () => {
+      if (window.innerWidth >= 1024) return;
+      if (!showRightSidebar) {
+        toggleRightSidebar();
+      }
+    }
+  });
 
   const bottomRef = useRef(null);
   const [input, setInput] = useState("");
@@ -101,6 +136,7 @@ const ChatContainer = () => {
   const [replyingTo, setReplyingTo] = useState(null);
   const [mentionList, setMentionList] = useState([]);
   const [showMentions, setShowMentions] = useState(false);
+  const [isFetchingLocation, setIsFetchingLocation] = useState(false);
   const [openMsgMenu, setOpenMsgMenu] = useState(null);
 
   // --- NEW MEDIA STATES ---
@@ -117,11 +153,6 @@ const ChatContainer = () => {
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
   const timerRef = useRef(null);
-
-  // --- MOBILES SWIPE GESTURE HANDLERS ---
-  const [touchStart, setTouchStart] = useState(null);
-  const [touchEnd, setTouchEnd] = useState(null);
-
 
   // --- VIEW ONCE MODAL ---
   const [viewOnceModal, setViewOnceModal] = useState(null);
@@ -347,15 +378,20 @@ const ChatContainer = () => {
       toast.error("Geolocation is not supported by your browser.");
       return;
     }
+    if (isFetchingLocation) return;
+    
+    setIsFetchingLocation(true);
     toast.loading("Getting your location...", { id: "loc" });
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         toast.dismiss("loc");
+        setIsFetchingLocation(false);
         setLocationPayload({ lat: pos.coords.latitude, lng: pos.coords.longitude });
         toast.success("Location ready to send!");
       },
       () => {
         toast.dismiss("loc");
+        setIsFetchingLocation(false);
         toast.error("Location access denied.");
       }
     );
@@ -420,44 +456,12 @@ const ChatContainer = () => {
     setDeleteTarget({ msg, isOwner, isAdmin });
   };
 
-  // --- MOBILES SWIPE GESTURE HANDLERS ---
-  const minSwipeDistance = 75; // More forgiving distance for natural swiping
-
-  const onTouchStart = (e) => {
-    setTouchEnd(null);
-    setTouchStart(e.targetTouches[0].clientX);
-  };
-
-  const onTouchMove = (e) => {
-    setTouchEnd(e.targetTouches[0].clientX);
-  };
-
-  const onTouchEndHandler = () => {
-    if (!touchStart || !touchEnd) return;
-    const distance = touchStart - touchEnd;
-    const isRightSwipe = distance < -minSwipeDistance;
-    const isLeftSwipe = distance > minSwipeDistance;
-
-    if (window.innerWidth < 1024) {
-      if (isRightSwipe) {
-        setActiveChat(null); // Swipe Right -> Go back to list
-      } else if (isLeftSwipe) {
-        // Swipe Left -> Open Sidebar if closed
-        const sidebar = document.querySelector(".right-sidebar-mobile-check"); 
-        // We can just call toggleRightSidebar if we knew the state, 
-        // but better yet, let's just make it always open on left swipe if it's mobile.
-        toggleRightSidebar(); 
-      }
-    }
-  };
-
   return (
     <div
       className="h-full flex flex-col bg-transparent relative"
+      style={{ touchAction: "pan-y" }}
       onClick={() => setOpenMsgMenu(null)}
-      onTouchStart={onTouchStart}
-      onTouchMove={onTouchMove}
-      onTouchEnd={onTouchEndHandler}
+      {...swipeHandlers}
     >
       {/* HEADER */}
       <div className="flex items-center justify-between px-4 lg:px-6 py-3 lg:py-4 border-b bg-white/30 backdrop-blur-md sticky top-0 z-10">
@@ -473,14 +477,22 @@ const ChatContainer = () => {
           )}
         </div>
         <div className="flex gap-2 items-center">
+          {/* Active Call Indicator */}
+          {callActive && callAccepted && (
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-green-500/10 rounded-full border border-green-500/20 mr-2">
+              <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+              <span className="text-green-600 font-mono text-xs font-bold">{formatDuration(duration)}</span>
+            </div>
+          )}
+          
           {/* Voice call button — private chats only */}
-          {!isGroup && (
+          {!isGroup && !callActive && (
             <button
               onClick={() => callUser(activeChat.data)}
               title="Voice Call"
-              className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-green-100 text-green-600 transition-colors"
+              className="w-10 h-10 flex items-center justify-center rounded-2xl bg-green-500/10 hover:bg-green-500/20 text-green-600 transition-all active:scale-90"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
               </svg>
             </button>
@@ -491,7 +503,11 @@ const ChatContainer = () => {
       </div>
 
       {/* MESSAGES */}
-      <div className="flex-1 overflow-y-auto px-4 lg:px-6 py-6 custom-scrollbar">
+      <div 
+        className="flex-1 overflow-y-auto px-4 lg:px-6 py-6 custom-scrollbar touch-pan-y"
+        style={{ touchAction: "pan-y" }}
+        {...swipeHandlers}
+      >
         <div className="max-w-[820px] mx-auto space-y-4">
           {messages.map((msg) => {
             const senderId = msg.sender?._id || msg.senderId;
@@ -629,6 +645,41 @@ const ChatContainer = () => {
                           </div>
                         );
                       })()}
+
+                      {/* Call Log Message */}
+                      {msg.messageType === "call_log" && (
+                        <div className={`flex flex-col gap-2 p-1 ${isMine ? 'text-gray-800' : 'text-white'}`}>
+                          <div className="flex items-center gap-3">
+                            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isMine ? 'bg-black/5' : 'bg-white/20'}`}>
+                              {msg.callLog?.status === "missed" ? <PhoneMissed className="w-5 h-5 text-red-400" /> : 
+                               msg.callLog?.status === "rejected" ? <PhoneMissed className="w-5 h-5 text-orange-400" /> :
+                               <Phone className="w-5 h-5 text-current" />}
+                            </div>
+                            <div>
+                              <p className="text-sm font-bold uppercase tracking-wide">
+                                {msg.callLog?.status === "missed" ? "Missed Voice Call" : 
+                                 msg.callLog?.status === "rejected" ? "Declined Voice Call" : "Voice Call"}
+                              </p>
+                              <div className="flex items-center gap-2 text-[10px] opacity-70 font-bold">
+                                {msg.callLog?.status === "completed" && (
+                                  <>
+                                    <Clock className="w-3 h-3" />
+                                    <span>{formatDuration(msg.callLog.duration)}</span>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          {!isMine && (msg.callLog?.status === "missed" || msg.callLog?.status === "rejected") && (
+                            <button 
+                              onClick={() => callUser(activeChat.data)}
+                              className="mt-2 w-full py-2 bg-white/10 hover:bg-white/20 rounded-xl text-xs font-bold transition-all border border-white/10"
+                            >
+                              Call Back
+                            </button>
+                          )}
+                        </div>
+                      )}
 
                       {msg.location?.lat && (
                         <div className="mt-2">
@@ -837,13 +888,18 @@ const ChatContainer = () => {
                   {(!isGroup || activeChat.data.admins?.some(a => (a._id || a) === authUser._id)) && (
                     <button
                       onClick={handleShareLocation}
+                      disabled={isFetchingLocation}
                       title="Share Location"
-                      className={`rounded-full p-2 transition-colors flex items-center justify-center opacity-70 hover:opacity-100 hover:bg-gray-100 ${locationPayload ? 'opacity-100 bg-green-100 text-green-600' : 'text-gray-600'}`}
+                      className={`rounded-full p-2 transition-colors flex items-center justify-center opacity-70 hover:opacity-100 hover:bg-gray-100 ${locationPayload ? 'opacity-100 bg-green-100 text-green-600' : 'text-gray-600'} ${isFetchingLocation ? 'animate-pulse' : ''}`}
                     >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                      </svg>
+                      {isFetchingLocation ? (
+                        <div className="w-4 h-4 border-2 border-green-600/30 border-t-green-600 rounded-full animate-spin"></div>
+                      ) : (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                      )}
                     </button>
                   )}
 

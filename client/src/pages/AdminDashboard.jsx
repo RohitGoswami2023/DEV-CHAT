@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useContext } from "react";
-import { AuthContext } from "../../context/AuthContext";
+import { AuthContext } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 
 const AdminDashboard = () => {
@@ -9,8 +9,12 @@ const AdminDashboard = () => {
   const [stats, setStats] = useState({
     totalUsers: 0,
     activeUsers: 0,
+    newUsers24h: 0,
     totalGroups: 0,
     totalMessages: 0,
+    ongoingCalls: 0,
+    totalCallsToday: 0,
+    suspiciousUsers: 0,
     dbSizeMB: 0,
   });
   const [loading, setLoading] = useState(true);
@@ -88,10 +92,42 @@ const AdminDashboard = () => {
 
         {/* ACTIVE USERS */}
         <StatCard 
-            title="Active Now" 
+            title="Online Users" 
             value={stats.activeUsers} 
             icon="🟢" 
             color="bg-green-100 text-green-600" 
+        />
+
+        {/* NEW USERS 24H */}
+        <StatCard 
+            title="New (24h)" 
+            value={stats.newUsers24h} 
+            icon="📈" 
+            color="bg-indigo-100 text-indigo-600" 
+        />
+
+        {/* SECURITY ALERTS */}
+        <StatCard 
+            title="Security Alerts" 
+            value={stats.suspiciousUsers} 
+            icon="⚠" 
+            color={stats.suspiciousUsers > 0 ? "bg-red-100 text-red-600 animate-pulse" : "bg-gray-100 text-gray-600"} 
+        />
+
+        {/* ONGOING CALLS */}
+        <StatCard 
+            title="Active Calls" 
+            value={stats.ongoingCalls} 
+            icon="📞" 
+            color="bg-teal-100 text-teal-600" 
+        />
+
+        {/* CALLS TODAY */}
+        <StatCard 
+            title="Calls Today" 
+            value={stats.totalCallsToday} 
+            icon="📱" 
+            color="bg-cyan-100 text-cyan-600" 
         />
 
         {/* GROUPS CREATED */}
@@ -104,7 +140,7 @@ const AdminDashboard = () => {
 
         {/* DB SIZE */}
         <StatCard 
-            title="DB Storage" 
+            title="Storage" 
             value={`${stats.dbSizeMB} MB`} 
             icon="💾" 
             color="bg-orange-100 text-orange-600" 
@@ -143,14 +179,58 @@ const AdminDashboard = () => {
                     <span className="text-white">Connected</span>
                 </div>
                 <div className="flex justify-between text-sm font-bold text-gray-400 border-b border-gray-700 pb-2">
+                    <span>Active Calls (Voices)</span>
+                    <span className="text-white">{stats.ongoingCalls} ongoing</span>
+                </div>
+                <div className="flex justify-between text-sm font-bold text-gray-400 border-b border-gray-700 pb-2">
                     <span>Socket Engine</span>
                     <span className="text-white">Active</span>
                 </div>
-                <div className="flex justify-between text-sm font-bold text-gray-400 pb-2">
-                    <span>Environment</span>
-                    <span className="text-white uppercase">{import.meta.env.MODE || "Development"}</span>
+                <div className="flex justify-between text-sm font-bold text-red-400 pb-2">
+                    <span>Security Monitor</span>
+                    <span className={stats.suspiciousUsers > 0 ? "text-red-500 animate-pulse" : "text-green-400"}>
+                      {stats.suspiciousUsers > 0 ? "Alert: Suspicious Activity" : "No Alerts"}
+                    </span>
                 </div>
             </div>
+        </div>
+
+        {/* AUDIT LOG SECTION */}
+        <div className="lg:col-span-2 bg-white/60 backdrop-blur-xl border border-white/60 rounded-[32px] p-8 shadow-xl">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-xl font-black text-gray-900">Security & Audit Monitoring</h3>
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest bg-gray-100 px-3 py-1 rounded-full">Real-time History</span>
+          </div>
+          
+          <div className="space-y-4">
+            {stats.suspiciousUsers > 0 ? (
+              <div className="bg-red-50 border border-red-100 p-4 rounded-2xl flex items-center gap-4">
+                <div className="w-10 h-10 bg-red-100 text-red-600 rounded-full flex items-center justify-center text-xl">⚠</div>
+                <div>
+                  <p className="font-bold text-red-900 text-sm">Detection: Brute Force Attempt</p>
+                  <p className="text-xs text-red-600">{stats.suspiciousUsers} accounts identified with excessive failed login attempts.</p>
+                </div>
+                <button className="ml-auto bg-red-600 text-white text-[10px] font-bold px-3 py-1.5 rounded-lg hover:bg-red-700 transition shadow-sm">Review Accounts</button>
+              </div>
+            ) : (
+              <div className="bg-green-50 border border-green-100 p-4 rounded-2xl flex items-center gap-4">
+                <div className="w-10 h-10 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-xl">✓</div>
+                <div>
+                  <p className="font-bold text-green-900 text-sm">System integrity confirmed</p>
+                  <p className="text-xs text-green-600">No suspicious authentication patterns detected in the last 24 hours.</p>
+                </div>
+              </div>
+            )}
+            
+            {/* Call Audit */}
+            <div className="bg-blue-50 border border-blue-100 p-4 rounded-2xl flex items-center gap-4">
+              <div className="w-10 h-10 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xl">📞</div>
+              <div>
+                <p className="font-bold text-blue-900 text-sm">Voice Signaling Health</p>
+                <p className="text-xs text-blue-600">{stats.totalCallsToday} calls established successfully today.</p>
+              </div>
+            </div>
+          </div>
         </div>
 
       </div>

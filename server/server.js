@@ -34,7 +34,8 @@ const encryptForCron = (text) => {
   let enc = cipher.update(text, "utf8", "hex"); enc += cipher.final("hex");
   return `${iv.toString("hex")}:${enc}`;
 };
-// import helmet from "helmet"; 
+import helmet from "helmet"; 
+import hpp from "hpp";
 import mongoSanitize from "express-mongo-sanitize";
 import rateLimit from "express-rate-limit";
 
@@ -49,17 +50,47 @@ app.set("trust proxy", 1);
 app.use(express.json({ limit: "15mb" }));
 app.use(express.urlencoded({ limit: "15mb", extended: true }));
 
-// 2. CORS (Allow Frontend)
+// 2. Security & CORS
+app.use((req, res, next) => {
+  // Required for Google OAuth popups
+  res.setHeader("Cross-Origin-Opener-Policy", "same-origin-allow-popups");
+  next();
+});
+
+const allowedOrigins = [
+  process.env.CLIENT_URL,
+  "http://localhost:5173",
+  "https://dev-chat-tan.vercel.app",
+].filter(Boolean);
+
 app.use(
   cors({
-    origin: process.env.CLIENT_URL || "http://localhost:5173",
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE"]
   })
 );
 
 // 3. Security Middleware (After Body Parsers)
-// app.use(helmet()); 
+app.use(helmet({
+  crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" },
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "https://accounts.google.com"],
+      connectSrc: ["'self'", "https://accounts.google.com", "https://api.cloudinary.com"],
+      imgSrc: ["'self'", "data:", "https://res.cloudinary.com", "https://*.googleusercontent.com"],
+      frameSrc: ["https://accounts.google.com"],
+    },
+  },
+})); 
+app.use(hpp()); 
 
 // ✅ FIX: Make req.query writable before mongoSanitize runs
 app.use((req, res, next) => {
@@ -118,8 +149,18 @@ io.on("connection", (socket) => {
     if (targetSocket) {
       io.to(targetSocket).emit("callIncoming", { signal: signalData, from, callerName, callerPic });
     } else {
-      // Receiver offline -> Missed call
+      // Receiver offline -> Missed call log
       createCallLogEntry({ caller: from, receiver: to, startTime: new Date(), status: "missed" });
+      // Create chat message for missed call
+      const missedMsg = new Message({
+        senderId: from,
+        receiverId: to,
+        messageType: "call_log",
+        callLog: { status: "missed", callType: "voice" }
+      });
+      missedMsg.save().then(m => {
+        socket.emit("newMessage", m);
+      });
     }
   });
 
@@ -147,6 +188,17 @@ io.on("connection", (socket) => {
         duration, 
         status: "completed" 
       });
+      // Create chat message for completed call
+      const callMsg = new Message({
+        senderId: callInfo.from,
+        receiverId: callInfo.to,
+        messageType: "call_log",
+        callLog: { duration, status: "completed", callType: "voice" }
+      });
+      callMsg.save().then(m => {
+        io.to(userSocketMap[callInfo.from]).emit("newMessage", m);
+        io.to(userSocketMap[callInfo.to]).emit("newMessage", m);
+      });
       delete callStartTimeMap[socket.id];
       delete callStartTimeMap[targetSocket];
     }
@@ -163,6 +215,17 @@ io.on("connection", (socket) => {
         startTime: callInfo.startTime, 
         status: "rejected" 
       });
+      // Create chat message for rejected/missed call
+      const rejectMsg = new Message({
+        senderId: callInfo.from,
+        receiverId: callInfo.to,
+        messageType: "call_log",
+        callLog: { status: "rejected", callType: "voice" }
+      });
+      rejectMsg.save().then(m => {
+        io.to(userSocketMap[callInfo.from]).emit("newMessage", m);
+        io.to(userSocketMap[callInfo.to]).emit("newMessage", m);
+      });
       delete callStartTimeMap[targetSocket];
     }
     if (targetSocket) io.to(targetSocket).emit("callRejected");
@@ -172,12 +235,19 @@ io.on("connection", (socket) => {
   socket.on("disconnect", () => {
     console.log("User Disconnected:", userId);
     
-    // If user disconnects during a call, treat as ended
+    // --- CALL SYNC: If user disconnects during a call, notify the other party ---
     const callInfo = callStartTimeMap[socket.id];
     if (callInfo) {
+      const targetSocket = userSocketMap[callInfo.to === userId ? callInfo.from : callInfo.to];
+      if (targetSocket) {
+        io.to(targetSocket).emit("callEnded");
+      }
+      
       const duration = Math.floor((new Date() - callInfo.startTime) / 1000);
       createCallLogEntry({ ...callInfo, endTime: new Date(), duration, status: "completed" });
       delete callStartTimeMap[socket.id];
+      // Also delete from other possible mapping if it exists
+      if (targetSocket) delete callStartTimeMap[targetSocket];
     }
 
     delete userSocketMap[userId];

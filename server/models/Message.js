@@ -9,6 +9,16 @@ const messageSchema = new mongoose.Schema({
     document: { type: String },
     documentName: { type: String },
     location: { lat: { type: Number }, lng: { type: Number } },
+    messageType: { 
+        type: String, 
+        enum: ["text", "image", "audio", "video", "document", "location", "call_log", "system"], 
+        default: "text" 
+    },
+    callLog: {
+        duration: { type: Number },
+        status: { type: String }, // "completed", "missed", "rejected"
+        callType: { type: String, default: "voice" }
+    },
     isViewOnce: { type: Boolean, default: false },
     expiresAt: { type: Date, index: { expires: 0 } },
     seen: { type: Boolean, default: false },

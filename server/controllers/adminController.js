@@ -1,7 +1,7 @@
-// controllers/adminController.js
 import User from "../models/User.js";
 import Group from "../models/Group.js";
 import Message from "../models/Message.js";
+import CallLog from "../models/CallLog.js";
 import mongoose from "mongoose";
 import { userSocketMap } from "../server.js"; // Import socket map to count online users
 
@@ -12,15 +12,26 @@ export const getDashboardStats = async (req, res) => {
     const totalGroups = await Group.countDocuments();
     const totalMessages = await Message.countDocuments();
 
-    // 2. Calculate Active Users (from Socket Map)
+    // 2. GROWTH: New Users (24h)
+    const newUsers24h = await User.countDocuments({ 
+      createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } 
+    });
+
+    // 3. SECURITY: Suspicious Users (Failed login attempts > 3)
+    const suspiciousUsers = await User.countDocuments({ failedLoginAttempts: { $gt: 3 } });
+
+    // 4. CALLS: Activity
+    const ongoingCalls = await CallLog.countDocuments({ status: "ongoing" });
+    const totalCallsToday = await CallLog.countDocuments({ 
+      startTime: { $gte: new Date().setHours(0,0,0,0) } 
+    });
+
+    // 5. Calculate Active Users (from Socket Map)
     const activeUsers = Object.keys(userSocketMap).length;
 
-    // 3. Get Database Storage Stats
-    // db.stats() returns size in bytes
+    // 6. Get Database Storage Stats
     const stats = await mongoose.connection.db.stats();
     const dbSizeBytes = stats.dataSize; 
-    
-    // Convert to MB
     const dbSizeMB = (dbSizeBytes / (1024 * 1024)).toFixed(2);
 
     res.json({
@@ -28,8 +39,12 @@ export const getDashboardStats = async (req, res) => {
       stats: {
         totalUsers,
         activeUsers,
+        newUsers24h,
         totalGroups,
         totalMessages,
+        ongoingCalls,
+        totalCallsToday,
+        suspiciousUsers,
         dbSizeMB,
       }
     });

@@ -1,6 +1,6 @@
 import React, { useState, useContext } from "react";
 import assets from "../assets/assets";
-import { AuthContext } from "../../context/AuthContext";
+import { AuthContext } from "../context/AuthContext";
 import OtpPage from "./OtpPage.jsx";
 import { GoogleLogin } from "@react-oauth/google";
 import axios from "axios";

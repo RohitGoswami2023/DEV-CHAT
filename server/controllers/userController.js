@@ -65,21 +65,24 @@ if (existingUser) {
 
 // ---------------- VERIFY SIGNUP OTP ----------------
 export const verifySignupOtp = async (req, res) => {
-  const { userId, otp } = req.body;
-  if (!userId || !otp)
+  const { email, otp, lat, lng } = req.body;
+  if (!email || !otp)
     return res.json({ success: false, message: "Missing details" });
 
   try {
-    const user = await User.findById(userId);
-    if (!user) return res.json({ success: false, message: "User not found" });
-    if (user.verifyOtp !== otp)
-      return res.json({ success: false, message: "Invalid OTP" });
-    if (user.verifyOtpExpireAt < Date.now())
-      return res.json({ success: false, message: "OTP expired" });
+    const user = await User.findOne({ email });
+    if (!user) return res.status(404).json({ success: false, message: "User not found" });
+
+    if (user.verifyOtp !== otp || user.verifyOtpExpireAt < Date.now()) {
+      return res.status(400).json({ success: false, message: "Invalid or expired OTP" });
+    }
 
     user.isAccountVerified = true;
     user.verifyOtp = "";
     user.verifyOtpExpireAt = 0;
+    user.lastLoginTime = new Date();
+    user.lastLoginIP = req.ip || "";
+    if (lat && lng) user.lastLoginCoords = { lat, lng };
     await user.save();
 
     const token = generateToken(user._id);
@@ -106,8 +109,16 @@ export const login = async (req, res) => {
     }
 
     const isPasswordCorrect = await bcrypt.compare(password, user.password);
-    if (!isPasswordCorrect)
+    if (!isPasswordCorrect) {
+      user.failedLoginAttempts += 1;
+      user.lastSuspiciousActivity = new Date();
+      await user.save();
       return res.status(400).json({ success: false, message: "Invalid credentials" });
+    }
+
+    // Reset on successful password check
+    user.failedLoginAttempts = 0;
+    await user.save();
 
     if (!user.isAccountVerified) {
       const otp = generateOTP();
@@ -144,20 +155,23 @@ export const login = async (req, res) => {
 
 // ---------------- VERIFY LOGIN OTP ----------------
 export const verifyLoginOtp = async (req, res) => {
-  const { userId, otp } = req.body;
-  if (!userId || !otp)
+  const { email, otp, lat, lng } = req.body;
+  if (!email || !otp)
     return res.json({ success: false, message: "Missing details" });
 
   try {
-    const user = await User.findById(userId);
-    if (!user) return res.json({ success: false, message: "User not found" });
-    if (user.loginOtp !== otp)
-      return res.json({ success: false, message: "Invalid OTP" });
-    if (user.loginOtpExpireAt < Date.now())
-      return res.json({ success: false, message: "OTP expired" });
+    const user = await User.findOne({ email });
+    if (!user) return res.status(404).json({ success: false, message: "User not found" });
+
+    if (user.loginOtp !== otp || user.loginOtpExpireAt < Date.now()) {
+      return res.status(400).json({ success: false, message: "Invalid or expired OTP" });
+    }
 
     user.loginOtp = "";
     user.loginOtpExpireAt = 0;
+    user.lastLoginTime = new Date();
+    user.lastLoginIP = req.ip || "";
+    if (lat && lng) user.lastLoginCoords = { lat, lng };
     await user.save();
 
     const token = generateToken(user._id);
@@ -288,8 +302,7 @@ export const getAllUsers = async (req, res) => {
 // ---------------- GOOGLE OAUTH LOGIN ----------------
 export const googleLogin = async (req, res) => {
   try {
-    const { token } = req.body;
-
+    const { token, lat, lng } = req.body;
     const ticket = await googleClient.verifyIdToken({
       idToken: token,
       audience: process.env.GOOGLE_CLIENT_ID,
@@ -301,6 +314,7 @@ export const googleLogin = async (req, res) => {
 
     // 🔒 CASE 1: Email already exists (OTP account)
     if (user) {
+      if (!user.googleId) user.googleId = sub; // Link Google ID if not already linked
       if (user.authProvider === "email") {
         return res.status(400).json({
           success: false,
@@ -310,6 +324,9 @@ export const googleLogin = async (req, res) => {
       }
 
       // Google already linked
+      user.lastLoginTime = new Date();
+      user.lastLoginIP = req.ip || "";
+      await user.save();
       const token = generateToken(user._id);
       return res.json({ success: true, token, userData: user });
     }
@@ -323,6 +340,9 @@ export const googleLogin = async (req, res) => {
       isAccountVerified: true,
       profilePic: picture,
       publicUserId: await generatePublicUserId(),
+      lastLoginTime: new Date(),
+      lastLoginIP: req.ip || "",
+      lastLoginCoords: (lat && lng) ? { lat, lng } : undefined,
     });
 
     const jwtToken = generateToken(user._id);

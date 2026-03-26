@@ -26,11 +26,22 @@ export const CallProvider = ({ children }) => {
   const remoteAudioRef = useRef(null);
   const callTargetRef = useRef(null);
   const timerRef = useRef(null);
+  const callTimeoutRef = useRef(null);
+  const streamRef = useRef(null); // Stable ref for stopping tracks
+  
+  // Audio assets
+  const incomingSound = useRef(new Audio("https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3"));
+  const endSound = useRef(new Audio("https://assets.mixkit.co/active_storage/sfx/2359/2359-preview.mp3"));
+
+  useEffect(() => {
+    incomingSound.current.loop = true;
+  }, []);
 
   const getStream = async () => {
     try {
       const s = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
       setStream(s);
+      streamRef.current = s;
       return s;
     } catch (err) {
       toast.error("Microphone access denied");
@@ -56,6 +67,13 @@ export const CallProvider = ({ children }) => {
         callerPic: authUser.profilePic,
       });
     });
+
+    // --- TIMEOUT LOGIC: Auto-cut if not answered in 60s ---
+    if (callTimeoutRef.current) clearTimeout(callTimeoutRef.current);
+    callTimeoutRef.current = setTimeout(() => {
+      toast("Call timed out: No answer");
+      endCall();
+    }, 60000);
 
     peer.on("stream", (remote) => {
       setRemoteStream(remote);
@@ -95,10 +113,19 @@ export const CallProvider = ({ children }) => {
 
     peer.signal(call.signal);
     peerRef.current = peer;
+
+    // Stop ringing
+    incomingSound.current.pause();
+    incomingSound.current.currentTime = 0;
   };
 
   const rejectCall = () => {
     if (call) socket.emit("callRejected", { to: call.from });
+    
+    // Stop ringing
+    incomingSound.current.pause();
+    incomingSound.current.currentTime = 0;
+
     setCall(null);
     setCallActive(false);
   };
@@ -108,9 +135,19 @@ export const CallProvider = ({ children }) => {
     if (target) socket.emit("endCall", { to: target });
     callTargetRef.current = null;
     if (peerRef.current) { peerRef.current.destroy(); peerRef.current = null; }
-    if (stream) { stream.getTracks().forEach(t => t.stop()); setStream(null); }
+    if (streamRef.current) { 
+      streamRef.current.getTracks().forEach(t => t.stop()); 
+      streamRef.current = null; 
+      setStream(null); 
+    }
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+    if (callTimeoutRef.current) { clearTimeout(callTimeoutRef.current); callTimeoutRef.current = null; }
     
+    // Sounds
+    incomingSound.current.pause();
+    incomingSound.current.currentTime = 0;
+    endSound.current.play().catch(() => {});
+
     setCall(null);
     setCallActive(false);
     setCallAccepted(false);
@@ -135,11 +172,23 @@ export const CallProvider = ({ children }) => {
       callTargetRef.current = data.from;
       setCall(data);
       setCallActive(true);
+      incomingSound.current.play().catch(() => {});
     };
     const onEnded = () => {
       callTargetRef.current = null;
       if (peerRef.current) { peerRef.current.destroy(); peerRef.current = null; }
-      if (stream) { stream.getTracks().forEach(t => t.stop()); setStream(null); }
+      if (streamRef.current) { 
+        streamRef.current.getTracks().forEach(t => t.stop()); 
+        streamRef.current = null; 
+        setStream(null); 
+      }
+      if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+      if (callTimeoutRef.current) { clearTimeout(callTimeoutRef.current); callTimeoutRef.current = null; }
+      
+      incomingSound.current.pause();
+      incomingSound.current.currentTime = 0;
+      endSound.current.play().catch(() => {});
+
       setCall(null); setCallActive(false); setCallAccepted(false);
       setOutgoingCall(null); setRemoteStream(null);
       toast("Call ended");
@@ -148,16 +197,26 @@ export const CallProvider = ({ children }) => {
       toast("Call declined");
       callTargetRef.current = null;
       if (peerRef.current) { peerRef.current.destroy(); peerRef.current = null; }
-      if (stream) { stream.getTracks().forEach(t => t.stop()); setStream(null); }
+      if (streamRef.current) { 
+        streamRef.current.getTracks().forEach(t => t.stop()); 
+        streamRef.current = null; 
+        setStream(null); 
+      }
       if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+      if (callTimeoutRef.current) { clearTimeout(callTimeoutRef.current); callTimeoutRef.current = null; }
+      
+      incomingSound.current.pause();
+      incomingSound.current.currentTime = 0;
+
       setCall(null); setCallActive(false); setCallAccepted(false);
       setOutgoingCall(null); setRemoteStream(null);
       setDuration(0);
     };
 
     const onAnswered = (signal) => {
-      // Incoming call was answered by me? No, this is for OUTGOING call being answered
-      // Already handled in callUser once, but let's ensure timer here if needed
+      if (callTimeoutRef.current) { clearTimeout(callTimeoutRef.current); callTimeoutRef.current = null; }
+      incomingSound.current.pause();
+      incomingSound.current.currentTime = 0;
       if (!timerRef.current) {
         timerRef.current = setInterval(() => {
           setDuration(prev => prev + 1);
@@ -175,7 +234,7 @@ export const CallProvider = ({ children }) => {
       socket.off("callRejected", onRejected);
       socket.off("callAnswered", onAnswered);
     };
-  }, [socket, stream]);
+  }, [socket]);
 
   // Handle local state timer for answering calls
   useEffect(() => {
@@ -201,6 +260,18 @@ export const CallProvider = ({ children }) => {
     }
   };
 
+  const deleteCallLog = async (axiosInstance, logId) => {
+    try {
+      const res = await axiosInstance.delete(`/api/calls/${logId}`);
+      if (res.data.success) {
+        setCallLogs(prev => prev.filter(log => log._id !== logId));
+        toast.success("Call log deleted");
+      }
+    } catch (err) {
+      toast.error("Failed to delete call log");
+    }
+  };
+
   const formatDuration = (sec) => {
     const mins = Math.floor(sec / 60);
     const secs = sec % 60;
@@ -218,7 +289,7 @@ export const CallProvider = ({ children }) => {
       call, callActive, callAccepted, callEnded, outgoingCall,
       stream, remoteStream, isMuted, isSpeaker, setIsSpeaker,
       isMinimized, setIsMinimized, duration, formatDuration,
-      callLogs, fetchCallLogs, toggleSpeaker,
+      callLogs, fetchCallLogs, deleteCallLog, toggleSpeaker,
       callUser, answerCall, rejectCall, endCall, toggleMute,
       localAudioRef, remoteAudioRef,
     }}>

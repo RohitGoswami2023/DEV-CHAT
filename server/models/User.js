@@ -92,6 +92,14 @@ const userSchema = new mongoose.Schema(
     allowChatRequests: { type: Boolean, default: true }, //
     blockedUsers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
     fcmToken: { type: String, default: "" }, // FIREBASE CLOUD MESSAGING TOKEN
+    lastLoginTime: { type: Date, default: Date.now },
+    failedLoginAttempts: { type: Number, default: 0 },
+    lastSuspiciousActivity: { type: Date },
+    lastLoginIP: { type: String, default: "" },
+    lastLoginCoords: {
+      lat: { type: Number },
+      lng: { type: Number },
+    },
   },
   { timestamps: true }
 );

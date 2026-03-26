@@ -27,3 +27,22 @@ export const createCallLogEntry = async (data) => {
     console.error("Error creating call log:", err.message);
   }
 };
+export const deleteCallLog = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user._id;
+
+    const log = await CallLog.findById(id);
+    if (!log) return res.status(404).json({ success: false, message: "Log not found" });
+
+    // Security: Only participants can delete
+    if (log.caller.toString() !== userId.toString() && log.receiver.toString() !== userId.toString()) {
+      return res.status(403).json({ success: false, message: "Unauthorized" });
+    }
+
+    await CallLog.findByIdAndDelete(id);
+    res.status(200).json({ success: true, message: "Call log deleted" });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};

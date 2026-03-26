@@ -2,9 +2,14 @@
 
 import React, { useContext, useState, useEffect } from "react";
 import assets from "../assets/assets";
-import { ChatContext } from "../../context/ChatContext";
-import { AuthContext } from "../../context/AuthContext";
+import { ChatContext } from "../context/ChatContext";
+import { AuthContext } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { CallContext } from "../context/CallContext.jsx";
+import toast from "react-hot-toast";
+import SecurityCheck from "./SecurityCheck.jsx";
+import CallHistory from "./CallHistory.jsx";
+import { ShieldCheck, Settings } from "lucide-react";
 
 const Sidebar = () => {
   const navigate = useNavigate();
@@ -31,7 +36,9 @@ const Sidebar = () => {
     fetchPrivateChats,
     reminders = [],
     deleteReminder,
+    setActiveChat
   } = useContext(ChatContext);
+  const { fetchCallLogs } = useContext(CallContext);
 
   const [tab, setTab] = useState("groups");
   const [search, setSearch] = useState("");
@@ -127,7 +134,16 @@ const Sidebar = () => {
 
       {/* HEADER */}
       <div className="flex items-center justify-between p-4 border-b">
-        <img src={assets.logo} className="w-10" alt="logo" />
+        <div className="flex items-center gap-2">
+          <img src={assets.logo} className="w-9" alt="logo" />
+          <button 
+            onClick={(e) => { e.stopPropagation(); setTab("security"); }}
+            title="Settings & Security"
+            className={`p-2 rounded-xl transition-all shadow-sm ${tab === "security" ? "bg-purple-600 text-white" : "bg-white/40 hover:bg-white text-purple-600"}`}
+          >
+            <Settings className="w-5 h-5" />
+          </button>
+        </div>
         <div className="flex gap-3 items-center">
 
           {/* 🔥 ADMIN BUTTON (Only visible to Admins) 🔥 */}
@@ -213,22 +229,6 @@ const Sidebar = () => {
         </>
       )}
 
-      {/* GROUP ACTIONS */}
-      <div className="flex gap-2 px-3 py-3 border-b">
-        <button
-          onClick={() => navigate("/create-group")}
-          className="flex-1 bg-purple-600 text-white text-sm font-bold py-2 rounded-xl hover:bg-purple-700 transition hover:shadow-md hover:-translate-y-0.5 active:translate-y-0"
-        >
-          Create Group
-        </button>
-        <button
-          onClick={() => navigate("/join-group")}
-          className="flex-1 bg-gray-800 text-white text-sm font-bold py-2 rounded-xl hover:bg-gray-900 transition hover:shadow-md hover:-translate-y-0.5 active:translate-y-0"
-        >
-          Join Group
-        </button>
-      </div>
-
       {/* TABS */}
       <div className="flex p-2 gap-2 bg-white/5 mx-2 mt-2 rounded-xl overflow-x-auto hide-scrollbar whitespace-nowrap scroll-smooth">
         <button
@@ -257,7 +257,6 @@ const Sidebar = () => {
           Reqs
           {totalRequests > 0 && <span className="bg-red-500 text-white text-[9px] w-4 h-4 rounded-full flex items-center justify-center">{totalRequests}</span>}
         </button>
-
         <button
           onClick={() => { setTab("archived"); setSearch(""); }}
           className={`flex-1 py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-all ${tab === "archived" ? "bg-purple-600 text-white shadow-md scale-105" : "hover:bg-white/10 hover:scale-105 active:scale-95"
@@ -265,6 +264,14 @@ const Sidebar = () => {
         >
           Archive {totalArchivedItems > 0 && `(${totalArchivedItems})`}
           {totalArchivedUnseen > 0 && <span className="bg-red-500 text-white text-[9px] w-4 h-4 rounded-full flex items-center justify-center">{totalArchivedUnseen}</span>}
+        </button>
+
+        <button
+          onClick={() => { setTab("calls"); setSearch(""); fetchCallLogs(axios); }}
+          className={`flex-1 py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-all ${tab === "calls" ? "bg-purple-600 text-white shadow-md scale-105" : "hover:bg-white/10 hover:scale-105 active:scale-95"
+            }`}
+        >
+          Calls
         </button>
       </div>
 
@@ -278,6 +285,13 @@ const Sidebar = () => {
 
       {/* LIST CONTENT */}
       <div className="flex-1 overflow-y-auto px-3 py-2 space-y-2 custom-scrollbar mt-2 pb-20">
+
+        {/* === CALLS TAB === */}
+        {tab === "calls" && <CallHistory />}
+
+        {/* === SECURITY TAB === */}
+        {tab === "security" && <SecurityCheck />}
+
 
         {/* === REQUESTS TAB === */}
         {tab === "requests" && (
@@ -338,37 +352,63 @@ const Sidebar = () => {
 
         {/* === GROUPS TAB === */}
         {tab === "groups" && (
-          (search ? searchResults.filter(i => false) : groups)
-            .filter(g => !authUser?.archivedChats?.includes(g._id) && g.name.toLowerCase().includes(search.toLowerCase()))
-            .map((group) => {
-              const isActive = activeChat?.data?._id === group._id;
-              return (
-                <div key={group._id} onClick={() => handleSelectChat("group", group)}
-                  className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer group/item relative ${openMenuId === group._id ? "z-50" : "z-0"} ${isActive ? "bg-white/40 shadow-sm" : "hover:bg-white/20"} ${popAnimationClass}`}>
-                  <img src={group.groupIcon || assets.avatar_icon} className="w-10 h-10 rounded-full border" alt="" />
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-sm truncate">{group.name}</p>
-                    <p className="text-[10px] opacity-60 truncate">{group.members?.length} members</p>
-                  </div>
+          <>
+            <div className="flex gap-2 mb-4">
+              <button
+                onClick={() => navigate("/create-group")}
+                className="flex-1 flex flex-col items-center justify-center p-4 bg-purple-600/10 border border-purple-600/20 rounded-2xl hover:bg-purple-600/20 transition-all group active:scale-95"
+              >
+                <div className="w-10 h-10 bg-purple-600 rounded-full flex items-center justify-center text-white mb-2 shadow-lg group-hover:scale-110 transition-transform">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                  </svg>
+                </div>
+                <span className="text-[10px] font-black uppercase tracking-widest text-purple-700">Create New</span>
+              </button>
+              <button
+                onClick={() => navigate("/join-group")}
+                className="flex-1 flex flex-col items-center justify-center p-4 bg-gray-100/50 border border-gray-200 rounded-2xl hover:bg-gray-100 transition-all group active:scale-95"
+              >
+                <div className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center text-white mb-2 shadow-lg group-hover:scale-110 transition-transform">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                  </svg>
+                </div>
+                <span className="text-[10px] font-black uppercase tracking-widest text-gray-700">Join Group</span>
+              </button>
+            </div>
+            {(search ? searchResults.filter(i => false) : groups)
+              .filter(g => !authUser?.archivedChats?.includes(g._id) && g.name.toLowerCase().includes(search.toLowerCase()))
+              .map((group) => {
+                const isActive = activeChat?.data?._id === group._id;
+                return (
+                  <div key={group._id} onClick={() => handleSelectChat("group", group)}
+                    className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer group/item relative ${openMenuId === group._id ? "z-50" : "z-0"} ${isActive ? "bg-white/40 shadow-sm" : "hover:bg-white/20"} ${popAnimationClass}`}>
+                    <img src={group.groupIcon || assets.avatar_icon} className="w-10 h-10 rounded-full border" alt="" />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-sm truncate">{group.name}</p>
+                      <p className="text-[10px] opacity-60 truncate">{group.members?.length} members</p>
+                    </div>
 
-                  <div className="flex items-center gap-2">
-                    {unseenMessages[group._id] > 0 && <span className="bg-green-600 text-white text-[10px] px-1.5 rounded-full">{unseenMessages[group._id]}</span>}
+                    <div className="flex items-center gap-2">
+                      {unseenMessages[group._id] > 0 && <span className="bg-green-600 text-white text-[10px] px-1.5 rounded-full">{unseenMessages[group._id]}</span>}
 
-                    {/* 3 DOTS MENU */}
-                    <div className="relative ml-auto" onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
-                      <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpenMenuId(openMenuId === group._id ? null : group._id); }} className="text-xl font-bold p-1 hover:bg-black/10 rounded-full opacity-60 hover:opacity-100 transition-opacity flex items-center justify-center w-8 h-8">⋮</button>
-                      {openMenuId === group._id && (
-                        <div className="absolute top-10 right-0 w-32 bg-white border border-gray-200 rounded-xl shadow-2xl z-50 overflow-hidden text-sm font-bold flex flex-col py-1 animate-in fade-in zoom-in-95">
-                          <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleArchiveChat(group._id); setOpenMenuId(null); }} className="text-left px-4 py-3 hover:bg-gray-100 text-black transition-colors">
-                            Archive
-                          </button>
-                        </div>
-                      )}
+                      {/* 3 DOTS MENU */}
+                      <div className="relative ml-auto" onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
+                        <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpenMenuId(openMenuId === group._id ? null : group._id); }} className="text-xl font-bold p-1 hover:bg-black/10 rounded-full opacity-60 hover:opacity-100 transition-opacity flex items-center justify-center w-8 h-8">⋮</button>
+                        {openMenuId === group._id && (
+                          <div className="absolute top-10 right-0 w-32 bg-white border border-gray-200 rounded-xl shadow-2xl z-50 overflow-hidden text-sm font-bold flex flex-col py-1 animate-in fade-in zoom-in-95">
+                            <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleArchiveChat(group._id); setOpenMenuId(null); }} className="text-left px-4 py-3 hover:bg-gray-100 text-black transition-colors">
+                              Archive
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              )
-            })
+                );
+              })}
+          </>
         )}
 
         {/* === CHATS TAB === */}

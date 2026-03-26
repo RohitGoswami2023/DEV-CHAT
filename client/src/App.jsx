@@ -3,8 +3,9 @@ import { Navigate, Route, Routes, useNavigate, useLocation } from "react-router-
 import LoginPage from "./pages/LoginPage";
 import HomePage from "./pages/HomePage";
 import ProfilePage from "./pages/ProfilePage";
+import { useSwipe } from "./hooks/useSwipe";
 import { Toaster } from "react-hot-toast";
-import { AuthContext } from "../context/AuthContext";
+import { AuthContext } from "./context/AuthContext";
 import AdminDashboard from "./pages/AdminDashboard";
 import CreateGroupPage from "./pages/groups/CreateGroupPage";
 import JoinGroupPage from "./pages/groups/JoinGroupPage";
@@ -14,35 +15,14 @@ const App = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // --- GLOBAL SWIPE BACK GESTURE FOR MOBILE ---
-  const [touchStart, setTouchStart] = useState(null);
-  const [touchEnd, setTouchEnd] = useState(null);
-  const minSwipeDistance = 60;
-
-  const onTouchStart = (e) => {
-    setTouchEnd(null);
-    setTouchStart({ x: e.targetTouches[0].clientX, y: e.targetTouches[0].clientY });
-  };
-
-  const onTouchMove = (e) => setTouchEnd({ x: e.targetTouches[0].clientX, y: e.targetTouches[0].clientY });
-
-  const onTouchEndHandler = () => {
-    if (!touchStart || !touchEnd) return;
-    const distanceX = touchStart.x - touchEnd.x;
-    const distanceY = touchStart.y - touchEnd.y;
-    
-    // Ensure gesture is mostly horizontal (not a scroll)
-    if (Math.abs(distanceX) > Math.abs(distanceY) && Math.abs(distanceX) > minSwipeDistance) {
-      const isRightSwipe = distanceX < -minSwipeDistance;
-      
-      // Phone back gesture logic
-      if (isRightSwipe && window.innerWidth < 1024) {
-         if (location.pathname !== "/" && location.pathname !== "/login") {
-            navigate(-1);
-         }
+  const swipeHandlers = useSwipe({
+    onSwipeRight: () => {
+      if (window.innerWidth >= 1024) return;
+      if (location.pathname !== "/" && location.pathname !== "/login") {
+        navigate(-1);
       }
     }
-  };
+  });
 
   if (isCheckingAuth && !authUser) {
     return (
@@ -56,9 +36,7 @@ const App = () => {
     <div 
       className="bg-cover bg-center bg-no-repeat bg-fixed min-h-screen" 
       style={{ backgroundImage: "url('/bgImage.svg')" }}
-      onTouchStart={onTouchStart}
-      onTouchMove={onTouchMove}
-      onTouchEnd={onTouchEndHandler}
+      {...swipeHandlers}
     >
       <Toaster />
 

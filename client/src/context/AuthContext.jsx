@@ -2,7 +2,7 @@ import { createContext, useEffect, useState, useRef } from "react";
 import axios from "axios";
 import toast from "react-hot-toast";
 import { io } from "socket.io-client";
-import { requestFirebaseToken, onMessageListener } from "../src/lib/firebase";
+import { requestFirebaseToken, onMessageListener } from "../lib/firebase";
 
 const backendUrl = import.meta.env.VITE_BACKEND_URL;
 axios.defaults.baseURL = backendUrl;

@@ -2,13 +2,31 @@ import React, { useContext } from "react";
 import Sidebar from "../components/Sidebar";
 import ChatContainer from "../components/ChatContainer";
 import RightSidebar from "../components/RightSidebar";
-import { ChatContext } from "../../context/ChatContext";
+import { ChatContext } from "../context/ChatContext";
+import { useSwipe } from "../hooks/useSwipe";
 
 const HomePage = () => {
-  const { activeChat, showRightSidebar } = useContext(ChatContext);
+  const { activeChat, setActiveChat, showRightSidebar, toggleRightSidebar } = useContext(ChatContext);
+
+  const swipeHandlers = useSwipe({
+    onSwipeRight: () => {
+      if (window.innerWidth >= 1024) return;
+      if (showRightSidebar) {
+        toggleRightSidebar();
+      } else if (activeChat) {
+        setActiveChat(null);
+      }
+    },
+    onSwipeLeft: () => {
+      if (window.innerWidth >= 1024) return;
+      if (activeChat && !showRightSidebar) {
+        toggleRightSidebar();
+      }
+    }
+  });
 
   return (
-    <div className="w-full h-screen overflow-hidden relative">
+    <div className="w-full h-screen overflow-hidden relative" {...swipeHandlers}>
       <div
         className={`h-full transition-all duration-300
         /* MOBILE: Default to block (stacking) */
