@@ -1,7 +1,7 @@
 import GroupMessage from "../models/GroupMessage.js";
 import Group from "../models/Group.js";
 import User from "../models/User.js";
-import { io, userSocketMap } from "../server.js";
+import { io, userSocketMap } from "../lib/socket.js";
 import admin from "../lib/firebaseAdmin.js";
 import cloudinary from "../lib/cloudinary.js";
 

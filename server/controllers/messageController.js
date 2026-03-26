@@ -4,7 +4,7 @@ import ChatRequest from "../models/ChatRequest.js"; // 🔥 1. IMPORT THIS
 import GroupMessage from "../models/GroupMessage.js";
 import Group from "../models/Group.js";
 import cloudinary from "../lib/cloudinary.js";
-import { io, userSocketMap } from "../server.js";
+import { io, userSocketMap } from "../lib/socket.js";
 import admin from "../lib/firebaseAdmin.js";
 import crypto from "crypto";
 import dotenv from "dotenv";

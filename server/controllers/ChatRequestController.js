@@ -3,7 +3,7 @@
 import ChatRequest from "../models/ChatRequest.js";
 import User from "../models/User.js";
 import Message from "../models/Message.js"; // <--- 1. IMPORT MESSAGE MODEL
-import { io, userSocketMap } from "../server.js"; 
+import { io, userSocketMap } from "../lib/socket.js"; 
 
 // ---------------- SEND REQUEST ----------------
 export const sendChatRequest = async (req, res) => {

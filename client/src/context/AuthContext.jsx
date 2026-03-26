@@ -18,6 +18,22 @@ export const AuthProvider = ({ children }) => {
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
   const socketRef = useRef(null);
+  const [notificationPermission, setNotificationPermission] = useState(
+    typeof window !== "undefined" ? Notification.permission : "default"
+  );
+
+  const requestPermission = async () => {
+    const fcmToken = await requestFirebaseToken();
+    setNotificationPermission(Notification.permission);
+    if (fcmToken && authUser) {
+      try {
+        await axios.put("/api/auth/fcm-token", { token: fcmToken });
+        console.log("✅ FCM Token Synced after manual request");
+      } catch (err) {
+        console.error("FCM Sync Error:", err);
+      }
+    }
+  };
 
   // OTP State
   const [otpUserId, setOtpUserId] = useState(null);
@@ -284,6 +300,8 @@ export const AuthProvider = ({ children }) => {
         otpType,
         signupData,
         loginData,
+        notificationPermission,
+        requestPermission,
       }}
     >
       {children}

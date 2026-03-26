@@ -13,9 +13,16 @@ try {
       admin.initializeApp({
         credential: admin.credential.cert(serviceAccount)
       });
-      console.log("✅ Firebase Admin Initialized Successfully.");
+      console.log("✅ Firebase Admin Initialized with local JSON.");
+  } else if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+      // Allow passing the entire JSON string via Env Var
+      const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+      admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount)
+      });
+      console.log("✅ Firebase Admin Initialized with Environment Variable.");
   } else {
-      console.warn("⚠️ Firebase Admin: serviceAccountKey.json not found.");
+      console.warn("⚠️ Firebase Admin: Neither serviceAccountKey.json nor FIREBASE_SERVICE_ACCOUNT env var found.");
   }
 } catch (error) {
   console.error("❌ Failed to initialize Firebase Admin:", error.message);

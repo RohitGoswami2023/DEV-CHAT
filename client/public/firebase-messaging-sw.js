@@ -15,12 +15,43 @@ const messaging = firebase.messaging();
 messaging.onBackgroundMessage((payload) => {
   console.log('[firebase-messaging-sw.js] Received background message ', payload);
   
-  const notificationTitle = payload.notification.title;
-  const notificationOptions = {
-    body: payload.notification.body,
-    icon: '/vite.svg', // Default icon for notifications
-    vibrate: [200, 100, 200]
+  const type = payload.data?.type;
+  let notificationTitle = payload.notification?.title || "New Notification";
+  let notificationOptions = {
+    body: payload.notification?.body || "You have a new message",
+    icon: '/favicon.svg',
+    vibrate: [200, 100, 200],
+    tag: type === 'call' ? 'incoming-call' : 'new-msg',
+    renotify: true,
+    data: payload.data
   };
 
+  if (type === 'call') {
+    notificationTitle = "📞 Incoming Call";
+    notificationOptions.body = `${payload.data.callerName || 'Someone'} is calling you...`;
+    notificationOptions.actions = [
+      { action: 'answer', title: 'Open App to Answer' }
+    ];
+  }
+
   self.registration.showNotification(notificationTitle, notificationOptions);
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const chatId = event.notification.data?.chatId || event.notification.data?.from;
+  
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      const url = chatId ? `/?chatId=${chatId}` : '/';
+      for (const client of clientList) {
+        if (client.url.includes(location.origin) && 'focus' in client) {
+          return client.focus();
+        }
+      }
+      if (clients.openWindow) {
+        return clients.openWindow(url);
+      }
+    })
+  );
 });

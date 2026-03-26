@@ -5,7 +5,7 @@ import http from "http";
 import { connectDB } from "./lib/db.js";
 import userRouter from "./routes/userRoutes.js";
 import messageRouter from "./routes/messageRoutes.js";
-import { Server } from "socket.io";
+import { initSocket, io, userSocketMap } from "./lib/socket.js";
 import groupRoutes from "./routes/groupRoutes.js";
 import GroupMessageRoutes from "./routes/groupMessageRoutes.js";
 import ChatRequestRoutes from "./routes/ChatRequestRoutes.js";
@@ -118,146 +118,8 @@ const limiter = rateLimit({
 app.use("/api", limiter); 
 
 // ================= SOCKET =================
-export const io = new Server(server, {
-  cors: {
-    origin: process.env.CLIENT_URL || "http://localhost:5173",
-    credentials: true,
-  },
-});
+const ioInstance = initSocket(server);
 
-export const userSocketMap = {};
-const callStartTimeMap = {}; // socketId -> { startTime, from, to }
-
-io.on("connection", (socket) => {
-  const userId = socket.handshake.query?.userId;
-
-  if (!userId) {
-    console.warn("Socket connected without userId");
-    return;
-  }
-
-  console.log("User Connected:", userId);
-  userSocketMap[userId] = socket.id;
-
-  io.emit("getOnlineUsers", Object.keys(userSocketMap));
-
-  // ── VOICE CALL SIGNALING (1-to-1 only) ────────────────────────────
-  socket.on("callUser", ({ to, signalData, from, callerName, callerPic }) => {
-    const targetSocket = userSocketMap[to];
-    // Record start of call
-    callStartTimeMap[socket.id] = { startTime: new Date(), from, to, status: "ongoing" };
-    if (targetSocket) {
-      io.to(targetSocket).emit("callIncoming", { signal: signalData, from, callerName, callerPic });
-    } else {
-      // Receiver offline -> Missed call log
-      createCallLogEntry({ caller: from, receiver: to, startTime: new Date(), status: "missed" });
-      // Create chat message for missed call
-      const missedMsg = new Message({
-        senderId: from,
-        receiverId: to,
-        messageType: "call_log",
-        callLog: { status: "missed", callType: "voice" }
-      });
-      missedMsg.save().then(m => {
-        socket.emit("newMessage", m);
-      });
-    }
-  });
-
-  socket.on("answerCall", ({ to, signal }) => {
-    const targetSocket = userSocketMap[to];
-    if (targetSocket) {
-      // Update start time to when it was actually answered for duration
-      if (callStartTimeMap[targetSocket]) callStartTimeMap[targetSocket].startTime = new Date();
-      io.to(targetSocket).emit("callAnswered", signal);
-    }
-  });
-
-  socket.on("endCall", ({ to }) => {
-    const targetSocket = userSocketMap[to];
-    // Record completion
-    const callInfo = callStartTimeMap[socket.id] || callStartTimeMap[targetSocket];
-    if (callInfo && callInfo.status === "ongoing") {
-      const endTime = new Date();
-      const duration = Math.floor((endTime - callInfo.startTime) / 1000);
-      createCallLogEntry({ 
-        caller: callInfo.from, 
-        receiver: callInfo.to, 
-        startTime: callInfo.startTime, 
-        endTime, 
-        duration, 
-        status: "completed" 
-      });
-      // Create chat message for completed call
-      const callMsg = new Message({
-        senderId: callInfo.from,
-        receiverId: callInfo.to,
-        messageType: "call_log",
-        callLog: { duration, status: "completed", callType: "voice" }
-      });
-      callMsg.save().then(m => {
-        io.to(userSocketMap[callInfo.from]).emit("newMessage", m);
-        io.to(userSocketMap[callInfo.to]).emit("newMessage", m);
-      });
-      delete callStartTimeMap[socket.id];
-      delete callStartTimeMap[targetSocket];
-    }
-    if (targetSocket) io.to(targetSocket).emit("callEnded");
-  });
-
-  socket.on("callRejected", ({ to }) => {
-    const targetSocket = userSocketMap[to];
-    const callInfo = callStartTimeMap[targetSocket];
-    if (callInfo) {
-      createCallLogEntry({ 
-        caller: callInfo.from, 
-        receiver: callInfo.to, 
-        startTime: callInfo.startTime, 
-        status: "rejected" 
-      });
-      // Create chat message for rejected/missed call
-      const rejectMsg = new Message({
-        senderId: callInfo.from,
-        receiverId: callInfo.to,
-        messageType: "call_log",
-        callLog: { status: "rejected", callType: "voice" }
-      });
-      rejectMsg.save().then(m => {
-        io.to(userSocketMap[callInfo.from]).emit("newMessage", m);
-        io.to(userSocketMap[callInfo.to]).emit("newMessage", m);
-      });
-      delete callStartTimeMap[targetSocket];
-    }
-    if (targetSocket) io.to(targetSocket).emit("callRejected");
-  });
-  // ───────────────────────────────────────────────────────────────────
-
-  socket.on("disconnect", () => {
-    console.log("User Disconnected:", userId);
-    
-    // --- CALL SYNC: If user disconnects during a call, notify the other party ---
-    const callInfo = callStartTimeMap[socket.id];
-    if (callInfo) {
-      const targetSocket = userSocketMap[callInfo.to === userId ? callInfo.from : callInfo.to];
-      if (targetSocket) {
-        io.to(targetSocket).emit("callEnded");
-      }
-      
-      const duration = Math.floor((new Date() - callInfo.startTime) / 1000);
-      createCallLogEntry({ ...callInfo, endTime: new Date(), duration, status: "completed" });
-      delete callStartTimeMap[socket.id];
-      // Also delete from other possible mapping if it exists
-      if (targetSocket) delete callStartTimeMap[targetSocket];
-    }
-
-    delete userSocketMap[userId];
-    io.emit("getOnlineUsers", Object.keys(userSocketMap));
-  });
-
-  socket.on("connect_error", (err) => {
-    console.error("Socket connection error:", err.message);
-  });
-});
 
 
 // ================= ROUTES =================

@@ -3,7 +3,7 @@ import Group from "../models/Group.js";
 import ChatRequest from "../models/ChatRequest.js";
 import cloudinary from "../lib/cloudinary.js";
 import { generateGroupId } from "../lib/generateGroupId.js";
-import { io, userSocketMap } from "../server.js";
+import { io, userSocketMap } from "../lib/socket.js";
 
 /* ================= HELPER: NOTIFY MEMBERS ================= */
 const notifyGroupUpdate = (group) => {

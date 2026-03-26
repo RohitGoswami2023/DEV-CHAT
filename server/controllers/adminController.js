@@ -3,7 +3,7 @@ import Group from "../models/Group.js";
 import Message from "../models/Message.js";
 import CallLog from "../models/CallLog.js";
 import mongoose from "mongoose";
-import { userSocketMap } from "../server.js"; // Import socket map to count online users
+import { io, userSocketMap } from "../lib/socket.js"; // Import socket map to count online users
 
 export const getDashboardStats = async (req, res) => {
   try {

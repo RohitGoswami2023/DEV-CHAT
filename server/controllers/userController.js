@@ -6,7 +6,7 @@ import { generateOTP } from "../lib/otpGenerator.js";
 import { sendOTPEmail } from "../lib/mailer.js";
 import cloudinary from "../lib/cloudinary.js";
 import { generatePublicUserId } from "../lib/generatePublicUserId.js";
-import { io, userSocketMap } from "../server.js";
+import { io, userSocketMap } from "../lib/socket.js";
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
@@ -65,12 +65,12 @@ if (existingUser) {
 
 // ---------------- VERIFY SIGNUP OTP ----------------
 export const verifySignupOtp = async (req, res) => {
-  const { email, otp, lat, lng } = req.body;
-  if (!email || !otp)
+  const { userId, otp, lat, lng } = req.body;
+  if (!userId || !otp)
     return res.json({ success: false, message: "Missing details" });
 
   try {
-    const user = await User.findOne({ email });
+    const user = await User.findById(userId);
     if (!user) return res.status(404).json({ success: false, message: "User not found" });
 
     if (user.verifyOtp !== otp || user.verifyOtpExpireAt < Date.now()) {
@@ -155,12 +155,12 @@ export const login = async (req, res) => {
 
 // ---------------- VERIFY LOGIN OTP ----------------
 export const verifyLoginOtp = async (req, res) => {
-  const { email, otp, lat, lng } = req.body;
-  if (!email || !otp)
+  const { userId, otp, lat, lng } = req.body;
+  if (!userId || !otp)
     return res.json({ success: false, message: "Missing details" });
 
   try {
-    const user = await User.findOne({ email });
+    const user = await User.findById(userId);
     if (!user) return res.status(404).json({ success: false, message: "User not found" });
 
     if (user.loginOtp !== otp || user.loginOtpExpireAt < Date.now()) {

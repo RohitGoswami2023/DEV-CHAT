@@ -1,6 +1,6 @@
 import Reminder from "../models/Reminder.js";
 import Group from "../models/Group.js";
-import { io, userSocketMap } from "../server.js";
+import { io, userSocketMap } from "../lib/socket.js";
 
 /* ===== CREATE REMINDER / SCHEDULED MESSAGE ===== */
 export const createReminder = async (req, res) => {
