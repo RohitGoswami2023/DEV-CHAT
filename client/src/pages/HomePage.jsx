@@ -58,7 +58,7 @@ const HomePage = () => {
       )}
 
       <div
-        className={`flex-1 transition-all duration-300 gap-0
+        className={`flex-1 transition-all duration-300 gap-0 border-r border-white/10
         /* MOBILE: Default to block (stacking) */
         block
         /* DESKTOP: Switch to Grid */
@@ -74,8 +74,8 @@ const HomePage = () => {
         {/* LEFT SIDEBAR */}
         {/* Mobile: Hide if chat is active. Desktop: Always show. */}
         <div 
-          className={`h-full overflow-hidden ${
-            activeChat ? "hidden lg:block" : "w-full"
+          className={`h-full overflow-hidden border-r border-white/10 ${
+            activeChat ? "hidden lg:block lg:w-[340px]" : "w-full"
           }`}
         >
           <Sidebar />
@@ -84,7 +84,7 @@ const HomePage = () => {
         {/* CHAT */}
         {/* Mobile: Hide if NO chat is active. Desktop: Always show. */}
         <div 
-          className={`h-full overflow-hidden ${
+          className={`h-full overflow-hidden flex flex-col ${
             !activeChat ? "hidden lg:block" : "w-full"
           }`}
         >

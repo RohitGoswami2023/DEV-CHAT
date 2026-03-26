@@ -133,13 +133,13 @@ const Sidebar = () => {
     <div className="h-full w-full lg:w-[340px] bg-white/20 backdrop-blur-xl flex flex-col border-r overflow-hidden" onClick={() => { setOpenMenuId(null); setShowBell(false); }}>
 
       {/* HEADER */}
-      <div className="flex items-center justify-between p-5 border-b border-white/10 bg-white/5 backdrop-blur-md">
+      <div className="flex items-center justify-between p-5 border-b border-white/10 bg-white/5 backdrop-blur-xl">
         <div className="flex items-center gap-3">
-          <img src={assets.logo} className="w-10 drop-shadow-md" alt="logo" />
+          <img src={assets.logo} className="w-10 drop-shadow-md opacity-90" alt="logo" />
           <button 
             onClick={(e) => { e.stopPropagation(); setTab("security"); }}
             title="Settings & Security"
-            className={`p-2.5 rounded-xl transition-all shadow-lg ${tab === "security" ? "bg-gradient-to-r from-purple-600 to-indigo-600 text-white" : "bg-white/30 hover:bg-white text-indigo-600"}`}
+            className={`p-2.5 rounded-xl transition-all shadow-lg ${tab === "security" ? "bg-indigo-600/40 text-white backdrop-blur-xl border border-white/20" : "bg-white/5 hover:bg-white/10 text-white border border-white/10"}`}
           >
             <Settings className="w-5 h-5" />
           </button>
@@ -230,10 +230,10 @@ const Sidebar = () => {
       )}
 
       {/* TABS */}
-      <div className="flex p-1.5 gap-1.5 bg-black/5 mx-3 mt-3 rounded-xl overflow-x-auto hide-scrollbar border border-white/10">
+      <div className="flex p-1.5 gap-1.5 bg-white/5 mx-3 mt-3 rounded-xl overflow-x-auto hide-scrollbar border border-white/10 backdrop-blur-md">
         <button
           onClick={() => { setTab("groups"); setSearch(""); }}
-          className={`flex-1 py-2 rounded-lg text-[11px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all ${tab === "groups" ? "bg-indigo-600 text-white shadow-lg scale-100" : "text-gray-600 hover:bg-white/20 active:scale-95"
+          className={`flex-1 py-2 rounded-lg text-[11px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all ${tab === "groups" ? "bg-indigo-600/40 text-white backdrop-blur-md border border-white/20 shadow-lg" : "text-white/60 hover:bg-white/5 active:scale-95"
             }`}
         >
           Groups
@@ -242,7 +242,7 @@ const Sidebar = () => {
 
         <button
           onClick={() => { setTab("chats"); setSearch(""); }}
-          className={`flex-1 py-2 rounded-lg text-[11px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all ${tab === "chats" ? "bg-indigo-600 text-white shadow-lg scale-100" : "text-gray-600 hover:bg-white/20 active:scale-95"
+          className={`flex-1 py-2 rounded-lg text-[11px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all ${tab === "chats" ? "bg-indigo-600/40 text-white backdrop-blur-md border border-white/20 shadow-lg" : "text-white/60 hover:bg-white/5 active:scale-95"
             }`}
         >
           Chats

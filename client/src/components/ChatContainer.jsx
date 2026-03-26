@@ -83,12 +83,12 @@ const AudioMessage = ({ src, isMine }) => {
 // --- MEMOIZED MESSAGE ITEM FOR PERFORMANCE ---
 const MessageItem = React.memo(({ msg, isMine, isGroup, authUser, onRightClick, openMsgMenu, setOpenMsgMenu, setReplyingTo, handleReplyPrivately, handleDeleteFromMenu, setViewOnceModal, callUser, formatMessageTime, renderStatusIcon, activeChat }) => {
   return (
-    <div className={`flex w-full mb-3 px-1 lg:px-4 ${isMine ? "justify-end" : "justify-start"}`}>
+    <div className={`flex w-full px-1 lg:px-4 ${isMine ? "justify-end" : "justify-start"}`}>
       <div onContextMenu={(e) => onRightClick(e, msg)}
-        className={`relative group max-w-[85%] lg:max-w-[480px] px-4 py-2.5 rounded-2xl shadow-xl transition-all duration-200 border-t border-white/10
+        className={`relative group max-w-[85%] lg:max-w-[480px] px-4 py-2.5 rounded-2xl shadow-2xl transition-all duration-200 border border-white/20 backdrop-blur-xl
         ${isMine 
-          ? "bg-gradient-to-br from-indigo-500/90 to-purple-600/90 text-white rounded-tr-none shadow-indigo-500/10" 
-          : "bg-white/80 backdrop-blur-md text-gray-800 rounded-tl-none shadow-black/5 border border-white/50"
+          ? "bg-indigo-500/30 text-white rounded-tr-none shadow-indigo-500/10" 
+          : "bg-white/10 text-white rounded-tl-none shadow-black/10"
         } ${openMsgMenu === msg._id ? "ring-2 ring-indigo-400 z-50" : "z-0"}`}>
 
         {!msg.deleted && (
@@ -186,26 +186,26 @@ const MessageItem = React.memo(({ msg, isMine, isGroup, authUser, onRightClick, 
             })()}
 
             {msg.messageType === "call_log" && (
-              <div className={`flex flex-col gap-2 p-2 mt-1 rounded-xl border ${isMine ? 'bg-black/10 border-white/10 text-white' : 'bg-indigo-50/50 border-indigo-100 text-gray-800'}`}>
+              <div className={`flex flex-col gap-2 p-2 mt-1 rounded-xl border border-white/10 ${isMine ? 'bg-black/20 text-white' : 'bg-white/5 text-white'}`}>
                 <div className="flex items-center gap-3">
-                  <div className={`w-9 h-9 rounded-full flex items-center justify-center shadow-inner ${isMine ? 'bg-white/10' : 'bg-white shadow-sm'}`}>
-                    {msg.callLog?.status === "missed" ? <span className="text-red-500 text-xs">📵</span> : 
-                     msg.callLog?.status === "rejected" ? <span className="text-orange-500 text-xs">🚫</span> :
-                     <span className="text-indigo-500 text-xs">📞</span>}
+                  <div className={`w-9 h-9 rounded-full flex items-center justify-center shadow-inner ${isMine ? 'bg-white/10' : 'bg-white/20'}`}>
+                    {msg.callLog?.status === "missed" ? <span className="text-red-400 text-xs text-shadow">📵</span> : 
+                     msg.callLog?.status === "rejected" ? <span className="text-orange-400 text-xs text-shadow">🚫</span> :
+                     <span className="text-indigo-300 text-xs text-shadow">📞</span>}
                   </div>
                   <div className="flex-1">
-                    <p className="text-[11px] font-black uppercase tracking-tight leading-none">
+                    <p className="text-[11px] font-black uppercase tracking-tight leading-none text-white">
                       {msg.callLog?.status === "missed" ? "Missed Call" : 
                        msg.callLog?.status === "rejected" ? "Declined Call" : "Voice Call"}
                     </p>
-                    <div className="flex items-center gap-2 text-[8px] opacity-60 font-bold mt-1 uppercase">
+                    <div className="flex items-center gap-2 text-[8px] opacity-60 font-bold mt-1 uppercase text-white">
                       {msg.callLog?.status === "completed" ? `• ${msg.callLog.duration}s talk` : `• Callback`}
                     </div>
                   </div>
                 </div>
                 {!isMine && (msg.callLog?.status === "missed" || msg.callLog?.status === "rejected") && (
                   <button onClick={() => callUser(activeChat.data)}
-                    className="w-full py-1.5 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg text-[10px] font-black transition-all shadow-md active:scale-95 uppercase tracking-widest">
+                    className="w-full py-1.5 bg-white/10 hover:bg-white/20 text-white rounded-lg text-[10px] font-black transition-all border border-white/10 active:scale-95 uppercase tracking-widest">
                     Call Back
                   </button>
                 )}
@@ -672,7 +672,7 @@ const ChatContainer = () => {
         style={{ touchAction: "pan-y" }}
         {...swipeHandlers}
       >
-        <div className="max-w-[860px] mx-auto w-full">
+        <div className="max-w-[820px] mx-auto w-full space-y-4">
           {(() => {
             const filteredMessages = [];
             for (let i = 0; i < messages.length; i++) {
@@ -783,7 +783,7 @@ const ChatContainer = () => {
           </p>
         </div>
       ) : (
-        <div className="px-4 lg:px-6 pt-3 pb-6 lg:py-4 border-t bg-white/50 relative">
+        <div className="px-4 lg:px-6 pt-3 pb-6 lg:py-4 border-t border-white/10 bg-white/5 backdrop-blur-xl relative">
           {(previewImage || previewVideo || locationPayload || previewDocument || (audioUrl && !isRecording)) && (
             <div className="absolute bottom-full left-0 mb-2 p-4 bg-white/90 backdrop-blur shadow-lg rounded-t-2xl flex items-center gap-4 w-full lg:w-auto">
               {previewImage && (
