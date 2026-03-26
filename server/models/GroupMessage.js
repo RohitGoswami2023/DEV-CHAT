@@ -22,6 +22,9 @@ const groupMessageSchema = new mongoose.Schema(
     },
     audio: { type: String, default: "" },
     video: { type: String, default: "" },
+    document: { type: String, default: "" },
+    documentName: { type: String, default: "" },
+    location: { lat: { type: Number }, lng: { type: Number } },
     isViewOnce: { type: Boolean, default: false },
     expiresAt: { type: Date, index: { expires: 0 } },
     replyTo: {

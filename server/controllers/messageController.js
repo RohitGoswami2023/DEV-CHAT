@@ -67,18 +67,18 @@ export const getMyChats = async (req, res) => {
     // 🔥 2. Get users from Accepted Chat Requests (Friends with no messages yet)
     // This fixes the "Nothing happens" issue when you add someone but haven't spoken.
     const connections = await ChatRequest.find({
-        $or: [
-            { sender: myId, status: "accepted" },
-            { receiver: myId, status: "accepted" }
-        ]
+      $or: [
+        { sender: myId, status: "accepted" },
+        { receiver: myId, status: "accepted" }
+      ]
     });
 
     for (const conn of connections) {
-        const otherId = conn.sender.toString() === myId ? conn.receiver.toString() : conn.sender.toString();
-        // Add to map (if not already there from messages)
-        if (!userMap.has(otherId)) {
-            userMap.set(otherId, true);
-        }
+      const otherId = conn.sender.toString() === myId ? conn.receiver.toString() : conn.sender.toString();
+      // Add to map (if not already there from messages)
+      if (!userMap.has(otherId)) {
+        userMap.set(otherId, true);
+      }
     }
 
     // 🔥 2.5 Ensure users hidden by the active user are explicitly ignored.
@@ -159,7 +159,7 @@ export const sendMessage = async (req, res) => {
   try {
     const senderId = req.user._id;
     const receiverId = req.params.id;
-    const { text, image, audio, video, isViewOnce, replyToGroupMsgId, replyTo } = req.body;
+    const { text, image, audio, video, document, documentName, location, isViewOnce, replyToGroupMsgId, replyTo } = req.body;
 
     // --- BLOCK CHECK ---
     const receiver = await User.findById(receiverId);
@@ -169,20 +169,24 @@ export const sendMessage = async (req, res) => {
       return res.status(403).json({ message: "You are blocked by this user" });
     }
 
-    const sender = await User.findById(senderId); 
+    const sender = await User.findById(senderId);
     if (sender.blockedUsers.includes(receiverId)) {
-        return res.status(403).json({ message: "You blocked this user. Unblock to send." });
+      return res.status(403).json({ message: "You blocked this user. Unblock to send." });
     }
     // -------------------
-    
+
     // --- PAYLOAD SIZE CHECKS ---
-    if (video && video.length > 14000000) { // ~13.3MB Base64 string for a 10MB file
-       return res.status(413).json({ success: false, message: "Video maximum size is 10MB limit." });
+    if (video && video.length > 14000000) {
+      return res.status(413).json({ success: false, message: "Video maximum size is 10MB limit." });
+    }
+    if (document && document.length > 14000000) {
+      return res.status(413).json({ success: false, message: "Document size exceeds 10MB limit." });
     }
 
     let imageUrl = null;
     let audioUrl = null;
     let videoUrl = null;
+    let documentUrl = null;
 
     if (image) {
       const upload = await cloudinary.uploader.upload(image, { resource_type: "auto" });
@@ -196,6 +200,10 @@ export const sendMessage = async (req, res) => {
       const upload = await cloudinary.uploader.upload(video, { resource_type: "auto" });
       videoUrl = upload.secure_url;
     }
+    if (document) {
+      const upload = await cloudinary.uploader.upload(document, { resource_type: "auto" });
+      documentUrl = upload.secure_url;
+    }
 
     const encryptedText = text ? encryptText(text) : null;
 
@@ -206,7 +214,7 @@ export const sendMessage = async (req, res) => {
     // 24 Hour Expiration logic natively
     let expiresAt = undefined;
     if (videoUrl) {
-       expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // exactly 24 hours
+      expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // exactly 24 hours
     }
 
     // Unhide the chat automatically for both parties upon message exchange
@@ -222,6 +230,9 @@ export const sendMessage = async (req, res) => {
       image: imageUrl,
       audio: audioUrl,
       video: videoUrl,
+      document: documentUrl || null,
+      documentName: documentName || null,
+      location: location || null,
       isViewOnce: isViewOnce || false,
       expiresAt: expiresAt,
       replyToGroupMsg: replyToGroupMsgId || null,
@@ -243,7 +254,7 @@ export const sendMessage = async (req, res) => {
 
     const decryptedMessage = {
       ...populated._doc,
-      text: text, 
+      text: text,
       replyTo: populated.replyTo ? {
         ...populated.replyTo._doc,
         text: populated.replyTo.text ? decryptText(populated.replyTo.text) : null
@@ -256,18 +267,18 @@ export const sendMessage = async (req, res) => {
     } else {
       // Offline Notification
       if (receiver.fcmToken) {
-          try {
-             await admin.messaging().send({
-                 token: receiver.fcmToken,
-                 notification: {
-                     title: `${sender.fullName}`,
-                     body: isViewOnce ? '📷 View Once Message' : (text ? text : (image ? '📷 Photo' : (video ? '🎥 Video' : (audio ? '🎤 Voice Message' : 'New Message'))))
-                 },
-                 data: { chatId: senderId.toString(), type: "private" }
-             });
-          } catch (err) { 
-             console.error("FCM Send Error:", err.message); 
-          }
+        try {
+          await admin.messaging().send({
+            token: receiver.fcmToken,
+            notification: {
+              title: `${sender.fullName}`,
+              body: isViewOnce ? '📷 View Once Message' : (text ? text : (image ? '📷 Photo' : (video ? '🎥 Video' : (audio ? '🎤 Voice Message' : 'New Message'))))
+            },
+            data: { chatId: senderId.toString(), type: "private" }
+          });
+        } catch (err) {
+          console.error("FCM Send Error:", err.message);
+        }
       }
     }
 
@@ -365,45 +376,45 @@ export const consumeViewOnce = async (req, res) => {
     let isGroup = false;
 
     if (!message) {
-       message = await GroupMessage.findById(messageId);
-       isGroup = true;
+      message = await GroupMessage.findById(messageId);
+      isGroup = true;
     }
 
     if (!message) {
-       return res.status(404).json({ success: false, message: "Message not found" });
+      return res.status(404).json({ success: false, message: "Message not found" });
     }
 
     if (!message.isViewOnce) {
-       return res.status(400).json({ success: false, message: "Not a view-once message" });
+      return res.status(400).json({ success: false, message: "Not a view-once message" });
     }
 
     // Permanently wipe the media payloads
     message.image = null;
     message.video = null;
-    
+
     await message.save();
 
     // Broadcast the exact timestamp/destruction state
     if (isGroup) {
-       const group = await Group.findById(message.group);
-       if (group) {
-          group.members.forEach((memberId) => {
-             const socketId = userSocketMap[memberId.toString()];
-             if (socketId) {
-                io.to(socketId).emit("viewOnceConsumed", { messageId, chatId: group._id, isGroup: true });
-             }
-          });
-       }
+      const group = await Group.findById(message.group);
+      if (group) {
+        group.members.forEach((memberId) => {
+          const socketId = userSocketMap[memberId.toString()];
+          if (socketId) {
+            io.to(socketId).emit("viewOnceConsumed", { messageId, chatId: group._id, isGroup: true });
+          }
+        });
+      }
     } else {
-       const senderSocket = userSocketMap[message.senderId.toString()];
-       const receiverSocket = userSocketMap[message.receiverId.toString()];
-       
-       if (senderSocket) io.to(senderSocket).emit("viewOnceConsumed", { messageId, chatId: message.receiverId.toString(), isGroup: false });
-       if (receiverSocket) io.to(receiverSocket).emit("viewOnceConsumed", { messageId, chatId: message.senderId.toString(), isGroup: false });
+      const senderSocket = userSocketMap[message.senderId.toString()];
+      const receiverSocket = userSocketMap[message.receiverId.toString()];
+
+      if (senderSocket) io.to(senderSocket).emit("viewOnceConsumed", { messageId, chatId: message.receiverId.toString(), isGroup: false });
+      if (receiverSocket) io.to(receiverSocket).emit("viewOnceConsumed", { messageId, chatId: message.senderId.toString(), isGroup: false });
     }
 
     res.json({ success: true });
-  } catch(error) {
+  } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 };

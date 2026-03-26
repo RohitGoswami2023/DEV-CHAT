@@ -9,6 +9,7 @@ const reminderSchema = new mongoose.Schema(
     scheduledAt: { type: Date, required: true }, // The ultimate timestamp of execution
     notified15Min: { type: Boolean, default: false }, // Explicit boolean preventing duplicate Push loops
     executed: { type: Boolean, default: false }, // Explicit boolean preventing duplicate dispatches
+    sendEmail: { type: Boolean, default: false }, // Explicit toggle to send email notification
   },
   { timestamps: true }
 );

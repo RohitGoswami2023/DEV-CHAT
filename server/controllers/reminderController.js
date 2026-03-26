@@ -5,7 +5,7 @@ import { io, userSocketMap } from "../server.js";
 /* ===== CREATE REMINDER / SCHEDULED MESSAGE ===== */
 export const createReminder = async (req, res) => {
   try {
-    const { text, chatId, isGroup, scheduledAt } = req.body;
+    const { text, chatId, isGroup, scheduledAt, sendEmail } = req.body;
     const creatorId = req.user._id;
 
     if (!text || !chatId || !scheduledAt) {
@@ -17,7 +17,7 @@ export const createReminder = async (req, res) => {
       return res.status(400).json({ success: false, message: "scheduledAt must be a valid future date" });
     }
 
-    const reminder = await Reminder.create({ text, creatorId, chatId, isGroup: !!isGroup, scheduledAt: fireAt });
+    const reminder = await Reminder.create({ text, creatorId, chatId, isGroup: !!isGroup, scheduledAt: fireAt, sendEmail: !!sendEmail });
 
     // Notify connected participants immediately so the UI refreshes
     if (isGroup) {

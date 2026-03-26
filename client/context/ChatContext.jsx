@@ -11,6 +11,7 @@ export const ChatProvider = ({ children }) => {
   const [privateChats, setPrivateChats] = useState([]);
   const [chatRequests, setChatRequests] = useState([]);
   const [outgoingRequests, setOutgoingRequests] = useState([]);
+  const [reminders, setReminders] = useState([]); // Global bell reminders
   const [blockedUsers, setBlockedUsers] = useState([]); 
   const [mutedChats, setMutedChats] = useState([]); 
   
@@ -61,6 +62,28 @@ export const ChatProvider = ({ children }) => {
       if (inRes.data.success) setChatRequests(inRes.data.requests);
       if (outRes.data.success) setOutgoingRequests(outRes.data.requests);
     } catch (error) { console.error(error); }
+  };
+
+  const fetchMyReminders = async () => {
+    try {
+      const { data } = await axios.get("/api/reminders/my");
+      if (data.success) setReminders(data.reminders);
+    } catch (e) { console.error(e); }
+  };
+
+  const createReminder = async (payload) => {
+    try {
+      const { data } = await axios.post("/api/reminders", payload);
+      if (data.success) { toast.success("Reminder set!"); setReminders(prev => [...prev, data.reminder]); }
+    } catch (err) { toast.error(err.response?.data?.message || "Failed to set reminder"); }
+  };
+
+  const deleteReminder = async (reminderId) => {
+    try {
+      await axios.delete(`/api/reminders/${reminderId}`);
+      toast.success("Reminder cancelled");
+      setReminders(prev => prev.filter(r => r._id !== reminderId));
+    } catch (err) { toast.error(err.response?.data?.message || "Failed to cancel reminder"); }
   };
 
   // --- BLOCK / ARCHIVE MANAGEMENT ---
@@ -260,6 +283,13 @@ export const ChatProvider = ({ children }) => {
       if (msg.senderId !== authUser._id && !currentMuted.includes(chatId)) {
          const isChatInactive = !currentActiveChat || currentActiveChat.data._id !== chatId;
          if (isChatInactive) {
+            // PLAY NOTIFICATION SOUND
+            try {
+               const audio = new Audio("https://cdn.pixabay.com/download/audio/2021/08/04/audio_0625c1539c.mp3?filename=success-1-6297.mp3");
+               audio.volume = 0.5;
+               audio.play().catch(e => console.log("Audio blocked:", e));
+            } catch(e) {}
+
             let title = "";
             let senderName = "Someone";
 
@@ -406,6 +436,33 @@ export const ChatProvider = ({ children }) => {
     socket.on("unblockedBy", onUnblockedBy);
     socket.on("viewOnceConsumed", onViewOnceConsumed);
 
+    // ── Reminder socket listeners ──────────────────────────────
+    const onNewReminder = (reminder) => {
+      setReminders(prev => prev.find(r => r._id === reminder._id) ? prev : [...prev, reminder]);
+      toast(`⏰ New reminder scheduled: ${reminder.text.substring(0, 40)}`);
+    };
+    const onReminderDeleted = ({ reminderId }) => setReminders(prev => prev.filter(r => r._id !== reminderId));
+    const onReminderExecuted = ({ reminderId }) => setReminders(prev => prev.filter(r => r._id !== reminderId));
+    const onReminderWarning = ({ reminder }) => {
+      toast(`⏰ Reminder in 15 min: "${reminder.text.substring(0, 50)}"`, { duration: 6000 });
+      
+      // PLAY NOTIFICATION SOUND
+      try {
+         const audio = new Audio("https://cdn.pixabay.com/download/audio/2021/08/04/audio_0625c1539c.mp3?filename=success-1-6297.mp3");
+         audio.volume = 0.7;
+         audio.play().catch(e => console.log("Audio blocked:", e));
+      } catch(e) {}
+
+      if (typeof Notification !== "undefined" && Notification.permission === "granted") {
+        try { new Notification("⏰ Reminder in 15 minutes", { body: reminder.text, icon: "/vite.svg" }); } catch(e) {}
+      }
+    };
+
+    socket.on("newReminder", onNewReminder);
+    socket.on("reminderDeleted", onReminderDeleted);
+    socket.on("reminderExecuted", onReminderExecuted);
+    socket.on("reminderWarning", onReminderWarning);
+
     return () => {
       socket.off("newMessage", onNewMessage);
       socket.off("messagesRead", onMessagesRead);
@@ -422,11 +479,15 @@ export const ChatProvider = ({ children }) => {
       socket.off("blockedBy", onBlockedBy);
       socket.off("unblockedBy", onUnblockedBy);
       socket.off("viewOnceConsumed", onViewOnceConsumed);
+      socket.off("newReminder", onNewReminder);
+      socket.off("reminderDeleted", onReminderDeleted);
+      socket.off("reminderExecuted", onReminderExecuted);
+      socket.off("reminderWarning", onReminderWarning);
     };
   }, [socket, authUser]);
 
   useEffect(() => { 
-    if (authUser) { fetchGroups(); fetchPrivateChats(); fetchChatRequests(); fetchBlockedUsers(); } 
+    if (authUser) { fetchGroups(); fetchPrivateChats(); fetchChatRequests(); fetchBlockedUsers(); fetchMyReminders(); } 
   }, [authUser]);
 
   return (
@@ -446,7 +507,9 @@ export const ChatProvider = ({ children }) => {
         cancelChatRequest,
         approveGroupJoinRequest, rejectGroupJoinRequest,
         toggleBlockUser, toggleMuteChat, mutedChats, 
-        toggleArchiveChat
+        toggleArchiveChat,
+        reminders, fetchMyReminders, createReminder,
+        deleteReminder: deleteReminder,
     }}>
       {children}
     </ChatContext.Provider>

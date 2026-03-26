@@ -9,7 +9,8 @@ const RightSidebar = () => {
     activeChat, messages, setActiveChat, fetchGroups, fetchMessages, 
     toggleBlockUser, blockedUsers, 
     toggleMuteChat, mutedChats,
-    toggleRightSidebar // Added to handle mobile closing
+    toggleRightSidebar,
+    reminders, createReminder, deleteReminder,
   } = useContext(ChatContext);
   
   const { authUser, axios } = useContext(AuthContext);
@@ -24,6 +25,20 @@ const RightSidebar = () => {
   const [editIcon, setEditIcon] = useState(null);
 
   const [openMenu, setOpenMenu] = useState(null);
+
+  // Reminder form
+  const [showReminderForm, setShowReminderForm] = useState(false);
+  const [reminderText, setReminderText] = useState("");
+  const [reminderDate, setReminderDate] = useState("");
+  const [isSavingReminder, setIsSavingReminder] = useState(false);
+  const [sendReminderEmail, setSendReminderEmail] = useState(false);
+
+  // Scheduled message form
+  const [showSchedForm, setShowSchedForm] = useState(false);
+  const [schedText, setSchedText] = useState("");
+  const [schedDate, setSchedDate] = useState("");
+  const [isSavingSched, setIsSavingSched] = useState(false);
+  const [myScheduled, setMyScheduled] = useState([]);
 
   if (!activeChat) return null;
 
@@ -275,7 +290,167 @@ const RightSidebar = () => {
         </div>
       )}
 
-      {/* PRIVATE CHAT: Block Action in Footer */}
+      {/* ═══════════ ⏰ REMINDERS (personal bell only) ═══════════ */}
+      {activeChat && (
+        <div className="space-y-3">
+          <button
+            onClick={() => setShowReminderForm(v => !v)}
+            className="w-full flex justify-between items-center font-black text-sm uppercase tracking-wider opacity-60 hover:opacity-100 transition-opacity"
+          >
+            ⏰ Reminders <span>{showReminderForm ? "−" : "+"}</span>
+          </button>
+          <p className="text-[10px] opacity-40 -mt-1">Personal bell notification — no message sent to chat</p>
+
+          {showReminderForm && (
+            <div className="space-y-3 bg-black/5 rounded-2xl p-4 border border-white/10 animate-in fade-in slide-in-from-top-2 duration-300">
+              <textarea
+                value={reminderText}
+                onChange={e => setReminderText(e.target.value)}
+                placeholder="What to remind you about?"
+                rows={2}
+                className="w-full px-4 py-3 rounded-2xl bg-white/20 border border-white/30 text-sm font-bold outline-none resize-none placeholder-white/30 focus:border-white/60 transition-all"
+              />
+              <div className="flex items-center gap-2 ml-1">
+                <input type="checkbox" id="sendEmail" checked={sendReminderEmail}
+                  className="w-4 h-4 cursor-pointer accent-indigo-500"
+                  onChange={e => setSendReminderEmail(e.target.checked)} />
+                <label htmlFor="sendEmail" className="text-[10px] font-black uppercase opacity-60 cursor-pointer">Email Notification</label>
+              </div>
+              <input type="datetime-local" value={reminderDate} onChange={e => setReminderDate(e.target.value)}
+                className="w-full px-4 py-3 rounded-2xl bg-white/20 border border-white/30 text-sm font-bold outline-none focus:border-white/60 transition-all" />
+              <button disabled={isSavingReminder} onClick={async () => {
+                if (!reminderText.trim() || !reminderDate) return toast.error("Fill both fields");
+                setIsSavingReminder(true);
+                try {
+                  await createReminder({ text: reminderText.trim(), chatId: data._id, isGroup, scheduledAt: new Date(reminderDate).toISOString(), sendEmail: sendReminderEmail });
+                  setReminderText(""); setReminderDate(""); setShowReminderForm(false);
+                } finally { setIsSavingReminder(false); }
+              }}
+                className={`w-full py-3 rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg transition-all ${
+                  isSavingReminder ? "bg-indigo-400 text-white cursor-not-allowed opacity-70" : "bg-indigo-600 text-white hover:bg-indigo-700 active:scale-95"}`}>
+                {isSavingReminder ? "⏳ Saving..." : "✓ Set Reminder"}
+              </button>
+            </div>
+          )}
+
+          {/* Active reminders for this chat */}
+          {reminders.filter(r => r.chatId === data._id).map(rem => (
+            <div key={rem._id} className="flex justify-between items-center bg-indigo-500/10 border border-indigo-400/20 rounded-2xl p-3 gap-2">
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-bold truncate">{rem.text}</p>
+                <p className="text-[10px] opacity-50 mt-0.5">{new Date(rem.scheduledAt).toLocaleString()}</p>
+              </div>
+              {(rem.creatorId?._id === authUser?._id || (isGroup && adminIds.includes(authUser?._id?.toString()))) && (
+                <button onClick={() => deleteReminder(rem._id)} className="text-red-400 hover:text-red-600 font-black text-lg leading-none">✕</button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ═══════════ 📅 SCHEDULE MESSAGE (private only) ═══════════ */}
+      {activeChat && !isGroup && (
+        <div className="space-y-3">
+          <button
+            onClick={async () => {
+              setShowSchedForm(v => !v);
+              if (!showSchedForm) {
+                try {
+                  const { data: d } = await axios.get("/api/scheduled/my");
+                  setMyScheduled(d.scheduled.filter(s => s.receiverId?._id === activeChat.data._id || s.receiverId === activeChat.data._id));
+                } catch (e) {}
+              }
+            }}
+            className="w-full flex justify-between items-center font-black text-sm uppercase tracking-wider opacity-60 hover:opacity-100 transition-opacity"
+          >
+            📅 Schedule Message <span>{showSchedForm ? "−" : "+"}</span>
+          </button>
+          <p className="text-[10px] opacity-40 -mt-1">Auto-sent to this chat at the chosen time</p>
+
+          {showSchedForm && (
+            <div className="space-y-3 bg-black/5 rounded-2xl p-4 border border-white/10 animate-in fade-in slide-in-from-top-2 duration-300">
+              <textarea
+                value={schedText}
+                onChange={e => setSchedText(e.target.value)}
+                placeholder="Message to send automatically..."
+                rows={3}
+                className="w-full px-4 py-3 rounded-2xl bg-white/20 border border-white/30 text-sm font-bold outline-none resize-none placeholder-white/30 focus:border-white/60 transition-all"
+              />
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase opacity-40 ml-1">Send At</label>
+                <input type="datetime-local" value={schedDate} onChange={e => setSchedDate(e.target.value)}
+                  className="w-full px-4 py-3 rounded-2xl bg-white/20 border border-white/30 text-sm font-bold outline-none focus:border-white/60 transition-all" />
+              </div>
+              <button disabled={isSavingSched} onClick={async () => {
+                if (!schedText.trim() || !schedDate) return toast.error("Fill both fields");
+                const at = new Date(schedDate);
+                if (at <= new Date()) return toast.error("Choose a future time");
+                setIsSavingSched(true);
+                try {
+                  const { data: d } = await axios.post("/api/scheduled", { receiverId: activeChat.data._id, text: schedText.trim(), scheduledAt: at.toISOString() });
+                  setMyScheduled(prev => [...prev, d.scheduled]);
+                  setSchedText(""); setSchedDate("");
+                  toast.success("Message scheduled!");
+                } catch (err) { toast.error(err.response?.data?.message || "Failed"); }
+                finally { setIsSavingSched(false); }
+              }}
+                className={`w-full py-3 rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg transition-all ${
+                  isSavingSched ? "bg-emerald-400 text-white cursor-not-allowed opacity-70" : "bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95"}`}>
+                {isSavingSched ? "⏳ Scheduling..." : "📤 Schedule Send"}
+              </button>
+
+              {/* Pending list */}
+              {myScheduled.length > 0 && (
+                <div className="space-y-2 pt-2">
+                  <p className="text-[10px] font-black uppercase opacity-40">Pending</p>
+                  {myScheduled.map(s => (
+                    <div key={s._id} className="flex justify-between items-start bg-emerald-500/10 border border-emerald-400/20 rounded-2xl p-3 gap-2">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-bold truncate">{s.text}</p>
+                        <p className="text-[10px] opacity-50 mt-0.5">Sends: {new Date(s.scheduledAt).toLocaleString()}</p>
+                      </div>
+                      <button onClick={async () => {
+                        try {
+                          await axios.delete(`/api/scheduled/${s._id}`);
+                          setMyScheduled(prev => prev.filter(m => m._id !== s._id));
+                          toast.success("Cancelled");
+                        } catch (e) { toast.error("Failed to cancel"); }
+                      }} className="text-red-400 hover:text-red-600 font-black text-lg leading-none">✕</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* History Access Toggle (Group Admins only) */}
+      {isGroup && isAdmin && (
+        <div className="space-y-2">
+          <p className="font-black text-[10px] uppercase tracking-wider opacity-40">New Member History</p>
+          <div className="flex rounded-2xl overflow-hidden border border-white/20">
+            {["all", "from_join"].map(opt => (
+              <button
+                key={opt}
+                onClick={async () => {
+                  try {
+                    await axios.put("/api/groups/update", { groupId: data._id, historyAccess: opt });
+                    toast.success(opt === "all" ? "Full history visible" : "New members see from join only");
+                  } catch (e) { toast.error(e.response?.data?.message || "Failed"); }
+                }}
+                className={`flex-1 py-2.5 text-[10px] font-black uppercase tracking-tighter transition-colors
+                  ${ data.historyAccess === opt || (!data.historyAccess && opt === "all")
+                    ? "bg-black text-white"
+                    : "bg-white/10 text-gray-500 hover:bg-white/20"
+                  }`}
+              >
+                {opt === "all" ? "Full History" : "From Join"}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       {!isGroup && activeChat && (
         <div className="pt-4 border-t border-white/10 mt-auto">
              <button 

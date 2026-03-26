@@ -8,7 +8,7 @@ import cloudinary from "../lib/cloudinary.js";
 /* ================= SEND GROUP MESSAGE ================= */
 export const sendGroupMessage = async (req, res) => {
   try {
-    const { groupId, text, image, audio, video, isViewOnce, replyTo } = req.body;
+    const { groupId, text, image, audio, video, document, documentName, location, isViewOnce, replyTo } = req.body;
     const userId = req.user._id.toString();
 
     const group = await Group.findById(groupId);
@@ -19,13 +19,25 @@ export const sendGroupMessage = async (req, res) => {
       return res.status(403).json({ success: false, message: "Access denied: Not a member" });
     }
 
-    if (video && video.length > 14000000) { // ~13.3MB Base64 string for a 10MB file
-       return res.status(413).json({ success: false, message: "Video maximum size is 10MB limit." });
+    // Location is admin-only in groups
+    if (location) {
+      const isAdmin = group.admins.some(id => id.toString() === userId);
+      if (!isAdmin) {
+        return res.status(403).json({ success: false, message: "Only admins can share location in groups" });
+      }
+    }
+
+    if (video && video.length > 14000000) {
+      return res.status(413).json({ success: false, message: "Video maximum size is 10MB limit." });
+    }
+    if (document && document.length > 14000000) {
+      return res.status(413).json({ success: false, message: "Document size exceeds 10MB limit." });
     }
 
     let imageUrl = null;
     let audioUrl = null;
     let videoUrl = null;
+    let documentUrl = null;
 
     if (image) {
       const upload = await cloudinary.uploader.upload(image, { resource_type: "auto" });
@@ -39,10 +51,14 @@ export const sendGroupMessage = async (req, res) => {
       const upload = await cloudinary.uploader.upload(video, { resource_type: "auto" });
       videoUrl = upload.secure_url;
     }
+    if (document) {
+      const upload = await cloudinary.uploader.upload(document, { resource_type: "auto" });
+      documentUrl = upload.secure_url;
+    }
 
     let expiresAt = undefined;
     if (videoUrl) {
-       expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); 
+      expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
     }
 
     const message = await GroupMessage.create({
@@ -52,6 +68,9 @@ export const sendGroupMessage = async (req, res) => {
       image: imageUrl,
       audio: audioUrl,
       video: videoUrl,
+      document: documentUrl || null,
+      documentName: documentName || null,
+      location: location || null,
       isViewOnce: isViewOnce || false,
       expiresAt: expiresAt,
       replyTo: replyTo || null,
@@ -77,23 +96,23 @@ export const sendGroupMessage = async (req, res) => {
 
     // Dispatch Multicast Firebase Push Notification 
     if (offlineMembers.length > 0) {
-       const offlineUsers = await User.find({ _id: { $in: offlineMembers }, fcmToken: { $ne: "" } });
-       const tokens = offlineUsers.map(u => u.fcmToken).filter(Boolean);
+      const offlineUsers = await User.find({ _id: { $in: offlineMembers }, fcmToken: { $ne: "" } });
+      const tokens = offlineUsers.map(u => u.fcmToken).filter(Boolean);
 
-       if (tokens.length > 0) {
-           try {
-               await admin.messaging().sendEachForMulticast({
-                   tokens,
-                   notification: {
-                       title: `${group.name}`,
-                       body: `${req.user.fullName}: ${isViewOnce ? '📷 View Once' : (text || 'Media Message')}`
-                   },
-                   data: { chatId: groupId.toString(), type: "group" }
-               });
-           } catch(err) { 
-               console.error("FCM Multicast Error:", err.message); 
-           }
-       }
+      if (tokens.length > 0) {
+        try {
+          await admin.messaging().sendEachForMulticast({
+            tokens,
+            notification: {
+              title: `${group.name}`,
+              body: `${req.user.fullName}: ${isViewOnce ? '📷 View Once' : (text || 'Media Message')}`
+            },
+            data: { chatId: groupId.toString(), type: "group" }
+          });
+        } catch (err) {
+          console.error("FCM Multicast Error:", err.message);
+        }
+      }
     }
 
     res.status(201).json({ success: true, message: populatedMessage });
@@ -119,10 +138,10 @@ export const getGroupMessages = async (req, res) => {
     // 🔥 HISTORY ACCESS PIPELINE
     let timeFilter = {};
     if (group.historyAccess === "from_join") {
-       const userJoinedAt = group.joinDates?.get(userId);
-       if (userJoinedAt) {
-          timeFilter = { createdAt: { $gte: new Date(userJoinedAt) } };
-       }
+      const userJoinedAt = group.joinDates?.get(userId);
+      if (userJoinedAt) {
+        timeFilter = { createdAt: { $gte: new Date(userJoinedAt) } };
+      }
     }
 
     const messages = await GroupMessage.find({ group: groupId, ...timeFilter })
@@ -157,7 +176,7 @@ export const deleteGroupMessage = async (req, res) => {
         return res.status(403).json({ success: false, message: "Only admin can delete for everyone" });
       }
 
-      await message.deleteOne(); 
+      await message.deleteOne();
 
       // Notify all members to remove the bubble
       group.members.forEach((memberId) => {

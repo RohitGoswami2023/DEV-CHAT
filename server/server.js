@@ -12,6 +12,10 @@ import ChatRequestRoutes from "./routes/ChatRequestRoutes.js";
 import searchRoutes from "./routes/searchRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
 import reminderRoutes from "./routes/reminderRoutes.js";
+import scheduledMessageRoutes from "./routes/scheduledMessageRoutes.js";
+import ScheduledMessage from "./models/ScheduledMessage.js";
+import callRoutes from "./routes/callRoutes.js";
+import { createCallLogEntry } from "./controllers/callController.js";
 // Cron dependencies
 import Reminder from "./models/Reminder.js";
 import Message from "./models/Message.js";
@@ -91,6 +95,7 @@ export const io = new Server(server, {
 });
 
 export const userSocketMap = {};
+const callStartTimeMap = {}; // socketId -> { startTime, from, to }
 
 io.on("connection", (socket) => {
   const userId = socket.handshake.query?.userId;
@@ -105,8 +110,76 @@ io.on("connection", (socket) => {
 
   io.emit("getOnlineUsers", Object.keys(userSocketMap));
 
+  // ── VOICE CALL SIGNALING (1-to-1 only) ────────────────────────────
+  socket.on("callUser", ({ to, signalData, from, callerName, callerPic }) => {
+    const targetSocket = userSocketMap[to];
+    // Record start of call
+    callStartTimeMap[socket.id] = { startTime: new Date(), from, to, status: "ongoing" };
+    if (targetSocket) {
+      io.to(targetSocket).emit("callIncoming", { signal: signalData, from, callerName, callerPic });
+    } else {
+      // Receiver offline -> Missed call
+      createCallLogEntry({ caller: from, receiver: to, startTime: new Date(), status: "missed" });
+    }
+  });
+
+  socket.on("answerCall", ({ to, signal }) => {
+    const targetSocket = userSocketMap[to];
+    if (targetSocket) {
+      // Update start time to when it was actually answered for duration
+      if (callStartTimeMap[targetSocket]) callStartTimeMap[targetSocket].startTime = new Date();
+      io.to(targetSocket).emit("callAnswered", signal);
+    }
+  });
+
+  socket.on("endCall", ({ to }) => {
+    const targetSocket = userSocketMap[to];
+    // Record completion
+    const callInfo = callStartTimeMap[socket.id] || callStartTimeMap[targetSocket];
+    if (callInfo && callInfo.status === "ongoing") {
+      const endTime = new Date();
+      const duration = Math.floor((endTime - callInfo.startTime) / 1000);
+      createCallLogEntry({ 
+        caller: callInfo.from, 
+        receiver: callInfo.to, 
+        startTime: callInfo.startTime, 
+        endTime, 
+        duration, 
+        status: "completed" 
+      });
+      delete callStartTimeMap[socket.id];
+      delete callStartTimeMap[targetSocket];
+    }
+    if (targetSocket) io.to(targetSocket).emit("callEnded");
+  });
+
+  socket.on("callRejected", ({ to }) => {
+    const targetSocket = userSocketMap[to];
+    const callInfo = callStartTimeMap[targetSocket];
+    if (callInfo) {
+      createCallLogEntry({ 
+        caller: callInfo.from, 
+        receiver: callInfo.to, 
+        startTime: callInfo.startTime, 
+        status: "rejected" 
+      });
+      delete callStartTimeMap[targetSocket];
+    }
+    if (targetSocket) io.to(targetSocket).emit("callRejected");
+  });
+  // ───────────────────────────────────────────────────────────────────
+
   socket.on("disconnect", () => {
     console.log("User Disconnected:", userId);
+    
+    // If user disconnects during a call, treat as ended
+    const callInfo = callStartTimeMap[socket.id];
+    if (callInfo) {
+      const duration = Math.floor((new Date() - callInfo.startTime) / 1000);
+      createCallLogEntry({ ...callInfo, endTime: new Date(), duration, status: "completed" });
+      delete callStartTimeMap[socket.id];
+    }
+
     delete userSocketMap[userId];
     io.emit("getOnlineUsers", Object.keys(userSocketMap));
   });
@@ -115,6 +188,7 @@ io.on("connection", (socket) => {
     console.error("Socket connection error:", err.message);
   });
 });
+
 
 // ================= ROUTES =================
 app.use("/api/auth", userRouter);
@@ -125,6 +199,8 @@ app.use("/api/chat-requests", ChatRequestRoutes);
 app.use("/api/search", searchRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/reminders", reminderRoutes);
+app.use("/api/scheduled", scheduledMessageRoutes);
+app.use("/api/calls", callRoutes);
 
 app.get("/api/status", (req, res) => {
   res.send("Server is live");
@@ -151,6 +227,41 @@ connectDB()
   .then(() => {
     server.listen(PORT, () => console.log(`Server running on PORT ${PORT}`));
 
+    /* ===================== SCHEDULED MESSAGE CRON =====================
+       Runs every 60s. Finds unsent scheduled messages whose time has
+       come, sends them as real messages via socket, marks sent: true.
+    ================================================================ */
+    setInterval(async () => {
+      try {
+        const now = new Date();
+        const due = await ScheduledMessage.find({
+          sent: false,
+          cancelledAt: null,
+          scheduledAt: { $lte: now },
+        }).populate("senderId", "fullName profilePic").populate("receiverId");
+
+        for (const sched of due) {
+          const encryptedText = encryptForCron(sched.text);
+          const newMsg = await Message.create({
+            senderId: sched.senderId._id,
+            receiverId: sched.receiverId._id,
+            text: encryptedText,
+            status: "sent",
+          });
+          const populated = await newMsg.populate([{ path: "senderId", select: "fullName profilePic" }]);
+          // Emit to receiver
+          const receiverSocket = userSocketMap[sched.receiverId._id.toString()];
+          if (receiverSocket) io.to(receiverSocket).emit("newMessage", { ...populated._doc, senderId: sched.senderId._id, text: sched.text });
+          // Emit to sender too (to update their own view)
+          const senderSocket = userSocketMap[sched.senderId._id.toString()];
+          if (senderSocket) io.to(senderSocket).emit("newMessage", { ...populated._doc, senderId: sched.senderId._id, text: sched.text });
+
+          sched.sent = true;
+          await sched.save();
+        }
+      } catch (err) { console.error("Scheduled message cron error:", err); }
+    }, 60000);
+
     /* ===================== REMINDER CRON WORKER =====================
        Runs every 60 seconds. Two phases:
        1) 15-min warning  → push notification + email
@@ -164,13 +275,17 @@ connectDB()
         // ── Phase 1: 15-min warning ──────────────────────────────────
         const toWarn = await Reminder.find({
           executed: false,
-          notified15Min: false,
+          notified15Min: { $ne: true }, // catches false AND missing/undefined
           scheduledAt: { $lte: in15 },
         }).populate("creatorId", "fullName email fcmToken");
+
+        console.log(`[Cron] ${now.toISOString()} — ${toWarn.length} reminder(s) to warn`);
 
         for (const rem of toWarn) {
           rem.notified15Min = true;
           await rem.save();
+
+          console.log(`[Cron] Warning reminder "${rem.text.substring(0,40)}" — creator: ${rem.creatorId?.email}`);
 
           // Browser push
           if (rem.creatorId?.fcmToken) {
@@ -183,12 +298,21 @@ connectDB()
                 },
                 data: { type: "reminder", chatId: rem.chatId, isGroup: String(rem.isGroup) },
               });
-            } catch (e) { console.error("FCM reminder warn:", e.message); }
+              console.log(`[Cron] FCM push sent to ${rem.creatorId.fullName}`);
+            } catch (e) { console.error("[Cron] FCM reminder warn error:", e.message); }
           }
 
           // Email
           if (rem.creatorId?.email) {
-            await sendReminderEmail(rem.creatorId.email, rem);
+            if (rem.sendEmail) {
+              console.log(`[Cron] Sending reminder email to ${rem.creatorId.email}...`);
+              await sendReminderEmail(rem.creatorId.email, rem);
+              console.log(`[Cron] ✅ Email sent to ${rem.creatorId.email}`);
+            } else {
+              console.log(`[Cron] Email skipped for reminder ${rem._id} (sendEmail is false)`);
+            }
+          } else {
+            console.warn(`[Cron] ⚠️ No email found for creator of reminder ${rem._id}`);
           }
 
           // Socket to all participants so bell badge updates

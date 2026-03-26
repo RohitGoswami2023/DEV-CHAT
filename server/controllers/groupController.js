@@ -200,7 +200,7 @@ export const getMyGroups = async (req, res) => {
 /* ================= UPDATE GROUP INFO ================= */
 export const updateGroup = async (req, res) => {
   try {
-    const { groupId, name, description, groupIcon } = req.body;
+    const { groupId, name, description, groupIcon, historyAccess } = req.body;
     const userId = req.user._id.toString();
 
     const group = await Group.findById(groupId);
@@ -212,6 +212,7 @@ export const updateGroup = async (req, res) => {
     const updateData = {};
     if (name) updateData.name = name;
     if (description !== undefined) updateData.description = description;
+    if (historyAccess) updateData.historyAccess = historyAccess;
 
     if (groupIcon) {
       const upload = await cloudinary.uploader.upload(groupIcon, { folder: "group-icons" });

@@ -31,20 +31,22 @@ export const sendOTPEmail = async (to, otp) => {
 export const sendReminderEmail = async (to, reminder) => {
   try {
     const fireTime = new Date(reminder.scheduledAt).toLocaleString();
-    await transporter.sendMail({
+    const info = await transporter.sendMail({
       from: process.env.SENDER_EMAIL,
       to,
-      subject: `⏰ Reminder in 15 minutes: "${reminder.text.substring(0, 40)}${reminder.text.length > 40 ? '...' : ''}",`,
+      subject: `\u23f0 Reminder in 15 minutes: "${reminder.text.substring(0, 40)}${reminder.text.length > 40 ? '...' : ''}",`,
       html: `
         <div style="font-family:sans-serif;padding:24px;max-width:480px;margin:auto;border:1px solid #e5e7eb;border-radius:12px">
-          <h2 style="color:#6366f1">⏰ Upcoming Reminder</h2>
+          <h2 style="color:#6366f1">\u23f0 Upcoming Reminder</h2>
           <p style="font-size:16px;color:#374151">${reminder.text}</p>
           <p style="color:#9ca3af;font-size:14px">Scheduled for: <strong>${fireTime}</strong></p>
           <p style="color:#9ca3af;font-size:13px">This is an automated reminder from your DEV-CHAT workspace.</p>
         </div>
       `,
     });
+    console.log("[Mailer] Reminder email sent, messageId:", info?.messageId);
   } catch (error) {
-    console.error("Error sending reminder email:", error.message);
+    console.error("[Mailer] \u274c Failed to send reminder email to", to);
+    console.error("[Mailer] SMTP error:", error?.responseCode, error?.response || error?.message);
   }
 };
