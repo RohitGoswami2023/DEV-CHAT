@@ -54,10 +54,14 @@ const AudioMessage = ({ src, isMine }) => {
   };
 
   return (
-    <div className={`flex items-center gap-2 lg:gap-3 w-[220px] lg:w-[260px] pt-1 select-none ${isMine ? 'text-gray-800' : 'text-white'}`}>
+    <div className={`flex items-center gap-3 w-[220px] lg:w-[280px] py-1 px-2 rounded-xl backdrop-blur-sm shadow-inner ${isMine ? 'bg-black/5 text-gray-800' : 'bg-white/10 text-white'}`}>
       <audio ref={audioRef} src={src} preload="metadata" />
-      <button onClick={togglePlay} className="flex-shrink-0 text-3xl opacity-80 hover:opacity-100 transition-opacity outline-none">
-        {isPlaying ? "⏸" : "▶"}
+      <button onClick={togglePlay} className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-all ${isMine ? 'bg-indigo-500 text-white hover:bg-indigo-600' : 'bg-white/20 text-white hover:bg-white/30'} shadow-sm active:scale-90`}>
+        {isPlaying ? (
+          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+        ) : (
+          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+        )}
       </button>
       <div className="flex flex-col flex-1 gap-1">
         <input
@@ -65,14 +69,12 @@ const AudioMessage = ({ src, isMine }) => {
           min="0" max="100"
           value={isNaN(progress) ? 0 : progress}
           onChange={handleSeek}
-          className={`w-full h-1.5 cursor-pointer rounded-full appearance-none bg-black/20 outline-none ${isMine ? 'accent-gray-600' : 'accent-white'}`}
+          className={`w-full h-1 cursor-pointer rounded-full appearance-none bg-black/10 outline-none ${isMine ? 'accent-indigo-500' : 'accent-white'}`}
         />
-        <div className="flex justify-between items-center text-[10px] font-bold opacity-70 px-1">
+        <div className="flex justify-between items-center text-[9px] font-bold opacity-60 tracking-tighter">
           <span>{formatTime(audioRef.current?.currentTime || 0)}</span>
+          <span>{formatTime(duration)}</span>
         </div>
-      </div>
-      <div className={`flex-shrink-0 w-8 h-8 rounded-full flex justify-center items-center text-sm ml-1 ${isMine ? 'bg-black/10' : 'bg-black/20'}`}>
-        🎤
       </div>
     </div>
   );
@@ -81,13 +83,13 @@ const AudioMessage = ({ src, isMine }) => {
 // --- MEMOIZED MESSAGE ITEM FOR PERFORMANCE ---
 const MessageItem = React.memo(({ msg, isMine, isGroup, authUser, onRightClick, openMsgMenu, setOpenMsgMenu, setReplyingTo, handleReplyPrivately, handleDeleteFromMenu, setViewOnceModal, callUser, formatMessageTime, renderStatusIcon, activeChat }) => {
   return (
-    <div className={`flex w-full mb-4 px-1 lg:px-4 ${isMine ? "justify-end" : "justify-start"}`}>
+    <div className={`flex w-full mb-3 px-1 lg:px-4 ${isMine ? "justify-end" : "justify-start"}`}>
       <div onContextMenu={(e) => onRightClick(e, msg)}
-        className={`relative group max-w-[85%] lg:max-w-[520px] px-5 py-3 rounded-2xl shadow transition-all 
+        className={`relative group max-w-[85%] lg:max-w-[480px] px-4 py-2.5 rounded-2xl shadow-xl transition-all duration-200 border-t border-white/10
         ${isMine 
-          ? "bg-gray-200 text-black rounded-tr-none" 
-          : "bg-green-600 text-white rounded-tl-none"
-        } ${openMsgMenu === msg._id ? "z-50" : "z-0"}`}>
+          ? "bg-gradient-to-br from-indigo-500/90 to-purple-600/90 text-white rounded-tr-none shadow-indigo-500/10" 
+          : "bg-white/80 backdrop-blur-md text-gray-800 rounded-tl-none shadow-black/5 border border-white/50"
+        } ${openMsgMenu === msg._id ? "ring-2 ring-indigo-400 z-50" : "z-0"}`}>
 
         {!msg.deleted && (
           <>
@@ -184,26 +186,26 @@ const MessageItem = React.memo(({ msg, isMine, isGroup, authUser, onRightClick, 
             })()}
 
             {msg.messageType === "call_log" && (
-              <div className={`flex flex-col gap-3 p-3 mt-1 rounded-2xl border ${isMine ? 'bg-black/5 border-white/10 text-white' : 'bg-indigo-50 border-indigo-100 text-gray-800'}`}>
-                <div className="flex items-center gap-4">
-                  <div className={`w-11 h-11 rounded-full flex items-center justify-center shadow-inner ${isMine ? 'bg-white/10' : 'bg-white shadow-sm'}`}>
-                    {msg.callLog?.status === "missed" ? <span className="text-red-500">📵</span> : 
-                     msg.callLog?.status === "rejected" ? <span className="text-orange-500">🚫</span> :
-                     <span className="text-indigo-500">📞</span>}
+              <div className={`flex flex-col gap-2 p-2 mt-1 rounded-xl border ${isMine ? 'bg-black/10 border-white/10 text-white' : 'bg-indigo-50/50 border-indigo-100 text-gray-800'}`}>
+                <div className="flex items-center gap-3">
+                  <div className={`w-9 h-9 rounded-full flex items-center justify-center shadow-inner ${isMine ? 'bg-white/10' : 'bg-white shadow-sm'}`}>
+                    {msg.callLog?.status === "missed" ? <span className="text-red-500 text-xs">📵</span> : 
+                     msg.callLog?.status === "rejected" ? <span className="text-orange-500 text-xs">🚫</span> :
+                     <span className="text-indigo-500 text-xs">📞</span>}
                   </div>
-                  <div>
-                    <p className="text-[13px] font-black uppercase tracking-tight leading-none">
+                  <div className="flex-1">
+                    <p className="text-[11px] font-black uppercase tracking-tight leading-none">
                       {msg.callLog?.status === "missed" ? "Missed Call" : 
                        msg.callLog?.status === "rejected" ? "Declined Call" : "Voice Call"}
                     </p>
-                    <div className="flex items-center gap-2 text-[10px] opacity-60 font-bold mt-1 uppercase">
-                      {msg.callLog?.status === "completed" ? `• ${msg.callLog.duration}s talk` : `• Click to callback`}
+                    <div className="flex items-center gap-2 text-[8px] opacity-60 font-bold mt-1 uppercase">
+                      {msg.callLog?.status === "completed" ? `• ${msg.callLog.duration}s talk` : `• Callback`}
                     </div>
                   </div>
                 </div>
                 {!isMine && (msg.callLog?.status === "missed" || msg.callLog?.status === "rejected") && (
                   <button onClick={() => callUser(activeChat.data)}
-                    className="w-full py-2.5 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl text-[11px] font-black transition-all shadow-md active:scale-95 uppercase tracking-widest">
+                    className="w-full py-1.5 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg text-[10px] font-black transition-all shadow-md active:scale-95 uppercase tracking-widest">
                     Call Back
                   </button>
                 )}
@@ -666,11 +668,11 @@ const ChatContainer = () => {
 
       {/* MESSAGES */}
       <div 
-        className="flex-1 overflow-y-auto px-4 lg:px-6 py-6 custom-scrollbar touch-pan-y"
+        className="flex-1 overflow-y-auto px-1 lg:px-4 py-6 custom-scrollbar touch-pan-y bg-cover bg-fixed backdrop-brightness-110"
         style={{ touchAction: "pan-y" }}
         {...swipeHandlers}
       >
-        <div className="max-w-[820px] mx-auto space-y-4">
+        <div className="max-w-[860px] mx-auto w-full">
           {(() => {
             const filteredMessages = [];
             for (let i = 0; i < messages.length; i++) {
