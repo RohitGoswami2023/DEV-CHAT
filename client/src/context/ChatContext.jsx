@@ -22,6 +22,9 @@ export const ChatProvider = ({ children }) => {
   const [showRightSidebar, setShowRightSidebar] = useState(false);
   const toggleRightSidebar = () => setShowRightSidebar((p) => !p);
 
+  // --- PERFORMANCE: PRELOAD NOTIFICATION SOUND ---
+  const notificationSound = useRef(new Audio("https://cdn.pixabay.com/download/audio/2021/08/04/audio_0625c1539c.mp3?filename=success-1-6297.mp3"));
+
   // --- STABLE REFS FOR SOCKET CALLBACKS ---
   const activeChatRef = useRef(activeChat);
   const privateChatsRef = useRef(privateChats);
@@ -169,10 +172,21 @@ export const ChatProvider = ({ children }) => {
 
   const deleteMessage = async (messageId, mode) => {
     try {
+      // Optimistic UI update
+      if (mode === "me") {
+        setMessages((prev) => prev.filter((m) => m._id !== messageId));
+      } else if (mode === "everyone") {
+        setMessages((prev) => prev.map((m) => 
+          m._id === messageId ? { ...m, deleted: true, text: null, image: null, video: null, audio: null } : m
+        ));
+      }
+
       const endpoint = activeChat.type === "group" ? `/api/group-messages/${messageId}` : `/api/messages/message/${messageId}`;
       await axios.delete(endpoint, { data: { mode } });
-      if (mode === "me") setMessages((prev) => prev.filter((m) => m._id !== messageId));
-    } catch (error) { toast.error("Failed to delete"); }
+    } catch (error) { 
+      toast.error("Failed to delete"); 
+      // Rollback logic could be added here, but usually not needed for simple UI
+    }
   };
 
   // --- ACTIONS ---
@@ -283,11 +297,11 @@ export const ChatProvider = ({ children }) => {
       if (msg.senderId !== authUser._id && !currentMuted.includes(chatId)) {
          const isChatInactive = !currentActiveChat || currentActiveChat.data._id !== chatId;
          if (isChatInactive) {
-            // PLAY NOTIFICATION SOUND
+            // PLAY PRELOADED NOTIFICATION SOUND
             try {
-               const audio = new Audio("https://cdn.pixabay.com/download/audio/2021/08/04/audio_0625c1539c.mp3?filename=success-1-6297.mp3");
-               audio.volume = 0.5;
-               audio.play().catch(e => console.log("Audio blocked:", e));
+               notificationSound.current.currentTime = 0;
+               notificationSound.current.volume = 0.5;
+               notificationSound.current.play().catch(e => {});
             } catch(e) {}
 
             let title = "";

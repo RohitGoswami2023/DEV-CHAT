@@ -54,10 +54,14 @@ const AudioMessage = ({ src, isMine }) => {
   };
 
   return (
-    <div className={`flex items-center gap-2 lg:gap-3 w-[220px] lg:w-[260px] pt-1 select-none ${isMine ? 'text-gray-800' : 'text-white'}`}>
+    <div className={`flex items-center gap-3 w-[220px] lg:w-[280px] py-1 px-2 rounded-xl backdrop-blur-sm shadow-inner ${isMine ? 'bg-black/5 text-gray-800' : 'bg-black/10 text-white'}`}>
       <audio ref={audioRef} src={src} preload="metadata" />
-      <button onClick={togglePlay} className="flex-shrink-0 text-3xl opacity-80 hover:opacity-100 transition-opacity outline-none">
-        {isPlaying ? "⏸" : "▶"}
+      <button onClick={togglePlay} className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-all ${isMine ? 'bg-indigo-500 text-white hover:bg-indigo-600' : 'bg-white/20 text-white hover:bg-white/30'} shadow-sm active:scale-90`}>
+        {isPlaying ? (
+          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+        ) : (
+          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+        )}
       </button>
       <div className="flex flex-col flex-1 gap-1">
         <input
@@ -65,18 +69,178 @@ const AudioMessage = ({ src, isMine }) => {
           min="0" max="100"
           value={isNaN(progress) ? 0 : progress}
           onChange={handleSeek}
-          className={`w-full h-1.5 cursor-pointer rounded-full appearance-none bg-black/20 outline-none ${isMine ? 'accent-gray-600' : 'accent-white'}`}
+          className={`w-full h-1 cursor-pointer rounded-full appearance-none bg-black/10 outline-none ${isMine ? 'accent-indigo-500' : 'accent-white'}`}
         />
-        <div className="flex justify-between items-center text-[10px] font-bold opacity-70 px-1">
+        <div className="flex justify-between items-center text-[9px] font-bold opacity-60 tracking-tighter">
           <span>{formatTime(audioRef.current?.currentTime || 0)}</span>
+          <span>{formatTime(duration)}</span>
         </div>
-      </div>
-      <div className={`flex-shrink-0 w-8 h-8 rounded-full flex justify-center items-center text-sm ml-1 ${isMine ? 'bg-black/10' : 'bg-black/20'}`}>
-        🎤
       </div>
     </div>
   );
 };
+
+// --- MEMOIZED MESSAGE ITEM FOR PERFORMANCE ---
+const MessageItem = React.memo(({ msg, isMine, isGroup, authUser, onRightClick, openMsgMenu, setOpenMsgMenu, setReplyingTo, handleReplyPrivately, handleDeleteFromMenu, setViewOnceModal, callUser, formatMessageTime, renderStatusIcon, activeChat }) => {
+  return (
+    <div className={`flex w-full mb-4 px-1 lg:px-4 ${isMine ? "justify-end" : "justify-start"}`}>
+      <div onContextMenu={(e) => onRightClick(e, msg)}
+        className={`relative group max-w-[85%] lg:max-w-[60%] px-4 py-2.5 rounded-2xl shadow-xl transition-all duration-200 border-t border-white/10
+        ${isMine 
+          ? "bg-gradient-to-br from-indigo-500/90 to-purple-600/90 text-white rounded-tr-none shadow-indigo-500/10" 
+          : "bg-white/90 backdrop-blur-md text-gray-800 rounded-tl-none shadow-black/5 border border-white/50"
+        } ${openMsgMenu === msg._id ? "ring-2 ring-indigo-400 z-50" : "z-0"}`}>
+
+        {!msg.deleted && (
+          <>
+            {/* PC Menu Trigger */}
+            <div className={`absolute top-1 ${isMine ? "-left-11" : "-right-11"} opacity-0 group-hover:opacity-100 hidden lg:block transition-all z-10`}>
+              <button onClick={(e) => { e.stopPropagation(); setOpenMsgMenu(msg._id); }}
+                className="bg-white/20 backdrop-blur-md hover:bg-white/40 text-black/70 font-black w-8 h-8 rounded-full shadow-lg flex items-center justify-center border border-white/20 transform hover:scale-110 active:scale-95">
+                ⋮
+              </button>
+            </div>
+
+            {/* Mobile Menu Trigger */}
+            <button onClick={(e) => { e.stopPropagation(); setOpenMsgMenu(msg._id); }}
+              className="lg:hidden absolute top-1 right-2 bg-black/5 hover:bg-black/10 text-inherit rounded-full w-6 h-6 flex items-center justify-center font-bold z-10">
+              ⋮
+            </button>
+
+            {/* MENU DROPDOWN */}
+            {openMsgMenu === msg._id && (
+              <div className={`absolute z-50 bg-white/95 backdrop-blur-xl text-gray-800 shadow-2xl border border-white/50 rounded-2xl py-2 w-44 text-[13px] font-bold flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-100 ${isMine ? "top-8 right-0" : "top-8 left-0"}`}>
+                <button onClick={(e) => { e.stopPropagation(); setReplyingTo(msg); setOpenMsgMenu(null); }}
+                  className="text-left px-5 py-3 hover:bg-indigo-50 hover:text-indigo-600 transition-colors flex items-center gap-3">
+                   ↩ Reply
+                </button>
+                {isGroup && !isMine && (
+                  <button onClick={(e) => { e.stopPropagation(); handleReplyPrivately(msg); }}
+                    className="text-left px-5 py-3 hover:bg-indigo-50 hover:text-indigo-600 transition-colors border-t border-black/5 flex items-center gap-3">
+                     👤 Private Reply
+                  </button>
+                )}
+                <button onClick={(e) => { e.stopPropagation(); handleDeleteFromMenu(msg); }}
+                  className="text-left px-5 py-3 hover:bg-red-50 text-red-600 transition-colors border-t border-black/5 flex items-center gap-3">
+                   🗑 Delete
+                </button>
+              </div>
+            )}
+          </>
+        )}
+
+        {isGroup && !isMine && <p className="text-[10px] font-black mb-1 opacity-60 tracking-wider uppercase">{msg.sender?.fullName}</p>}
+
+        {(msg.replyTo || msg.replyToGroupMsg) && (
+          <div className={`border-l-4 p-2 mb-2 rounded-lg text-xs backdrop-blur-sm ${isMine ? 'bg-black/10 border-white/30' : 'bg-gray-100 border-indigo-400'}`}>
+            <p className="font-black opacity-70">{(msg.replyTo?.senderId?.fullName || msg.replyTo?.sender?.fullName || msg.replyToGroupMsg?.sender?.fullName)}</p>
+            <p className="truncate italic opacity-60">{(msg.replyTo?.text || msg.replyToGroupMsg?.text || "Media Attachment")}</p>
+          </div>
+        )}
+
+        {msg.deleted ? <p className="italic opacity-50 text-[13px] font-medium py-1">Message was deleted</p> : (
+          <div className="w-full">
+            {msg.text && <p className="whitespace-pre-wrap break-words text-[15px] leading-relaxed selection:bg-white/20">{msg.text}</p>}
+
+            {msg.isViewOnce && (msg.image || msg.video) ? (
+              <div onClick={() => setViewOnceModal(msg)}
+                className={`flex items-center gap-4 p-4 mt-2 rounded-2xl cursor-pointer transition-all border shadow-inner active:scale-[0.98]
+                        ${isMine ? "bg-black/15 border-white/10 hover:bg-black/25" : "bg-indigo-50/50 border-indigo-100 hover:bg-indigo-100/50"}`}>
+                <span className="text-3xl drop-shadow-lg">{msg.image ? "🖼️" : "🎥"}</span>
+                <div className="flex flex-col">
+                  <span className="font-black text-sm tracking-tight">{msg.image ? "Secret Photo" : "Secret Video"}</span>
+                  <span className="text-[9px] opacity-70 flex items-center gap-1 font-bold uppercase tracking-widest mt-0.5">
+                    <span className="w-3.5 h-3.5 text-[8px] border border-current rounded-full flex items-center justify-center font-black">1</span> View Once
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <>
+                {msg.image && <img src={msg.image} loading="lazy" className="mt-2 rounded-xl max-h-72 w-full object-cover shadow-2xl border border-white/10 transition-transform hover:scale-[1.01]" />}
+                {msg.video && <video src={msg.video} controls preload="metadata" className="mt-2 rounded-xl max-h-72 w-full object-cover bg-black shadow-2xl" />}
+              </>
+            )}
+
+            {msg.audio && <div className="mt-2"><AudioMessage src={msg.audio} isMine={isMine} /></div>}
+
+            {msg.document && (() => {
+              const fname = msg.documentName || "Document";
+              const ext = fname.includes(".") ? fname.split(".").pop().toUpperCase() : "FL";
+              return (
+                <div className={`mt-2 rounded-2xl overflow-hidden border shadow-xl w-full max-w-[280px] ${isMine ? 'bg-white/10 border-white/20' : 'bg-white border-gray-100'}`}>
+                  <div className="flex items-center gap-4 px-4 py-4 backdrop-blur-md">
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center flex-shrink-0 shadow-lg text-white font-black text-xs">
+                      {ext}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-sm font-black truncate ${isMine ? 'text-white' : 'text-gray-800'}`}>{fname}</p>
+                      <span className="text-[9px] font-black opacity-50 uppercase tracking-widest mt-1">Ready to download</span>
+                    </div>
+                  </div>
+                  <div className="flex divide-x divide-white/10 border-t border-white/10">
+                    <a href={msg.document} target="_blank" rel="noreferrer" className={`flex-1 py-3 text-[11px] font-black text-center uppercase tracking-widest hover:bg-black/5 transition-all ${isMine ? 'text-white' : 'text-indigo-600'}`}>View</a>
+                    <a href={msg.document} download={fname} className={`flex-1 py-3 text-[11px] font-black text-center uppercase tracking-widest hover:bg-black/5 transition-all ${isMine ? 'text-white/70' : 'text-gray-500'}`}>Save</a>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {msg.messageType === "call_log" && (
+              <div className={`flex flex-col gap-3 p-3 mt-1 rounded-2xl border ${isMine ? 'bg-black/5 border-white/10 text-white' : 'bg-indigo-50 border-indigo-100 text-gray-800'}`}>
+                <div className="flex items-center gap-4">
+                  <div className={`w-11 h-11 rounded-full flex items-center justify-center shadow-inner ${isMine ? 'bg-white/10' : 'bg-white shadow-sm'}`}>
+                    {msg.callLog?.status === "missed" ? <span className="text-red-500">📵</span> : 
+                     msg.callLog?.status === "rejected" ? <span className="text-orange-500">🚫</span> :
+                     <span className="text-indigo-500">📞</span>}
+                  </div>
+                  <div>
+                    <p className="text-[13px] font-black uppercase tracking-tight leading-none">
+                      {msg.callLog?.status === "missed" ? "Missed Call" : 
+                       msg.callLog?.status === "rejected" ? "Declined Call" : "Voice Call"}
+                    </p>
+                    <div className="flex items-center gap-2 text-[10px] opacity-60 font-bold mt-1 uppercase">
+                      {msg.callLog?.status === "completed" ? `• ${msg.callLog.duration}s talk` : `• Click to callback`}
+                    </div>
+                  </div>
+                </div>
+                {!isMine && (msg.callLog?.status === "missed" || msg.callLog?.status === "rejected") && (
+                  <button onClick={() => callUser(activeChat.data)}
+                    className="w-full py-2.5 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl text-[11px] font-black transition-all shadow-md active:scale-95 uppercase tracking-widest">
+                    Call Back
+                  </button>
+                )}
+              </div>
+            )}
+
+            {msg.location?.lat && (
+              <div className="mt-2">
+                <a href={`https://www.google.com/maps?q=${msg.location.lat},${msg.location.lng}`} target="_blank" rel="noreferrer"
+                  className={`flex flex-col gap-3 p-4 rounded-2xl shadow-xl border w-fit transition-all hover:scale-[1.02] active:scale-95
+                    ${isMine ? 'bg-white/10 border-white/20' : 'bg-white border-gray-100'}`}>
+                  <div className="flex items-center gap-4">
+                    <span className="text-3xl drop-shadow-md">📍</span>
+                    <div className="flex flex-col">
+                      <span className={`font-black tracking-tight ${isMine ? 'text-white' : 'text-gray-800'}`}>Current Location</span>
+                      <span className="text-[10px] opacity-50 font-bold uppercase tracking-wider mt-0.5">Google Maps Live</span>
+                    </div>
+                  </div>
+                  <span className={`text-[10px] font-black underline uppercase tracking-widest text-center ${isMine ? 'text-white/80' : 'text-indigo-600'}`}>Open Route →</span>
+                </a>
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="flex items-center justify-end gap-1.5 mt-2">
+          <p className="text-[9px] font-black opacity-50 uppercase tracking-tighter">{formatMessageTime(msg.createdAt)}</p>
+          {isMine && !isGroup && (
+            <div className="scale-75 opacity-70">{renderStatusIcon(msg.status)}</div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+});
 
 const ChatContainer = () => {
   const {
@@ -504,213 +668,32 @@ const ChatContainer = () => {
 
       {/* MESSAGES */}
       <div 
-        className="flex-1 overflow-y-auto px-4 lg:px-6 py-6 custom-scrollbar touch-pan-y"
+        className="flex-1 overflow-y-auto px-1 lg:px-4 py-6 custom-scrollbar touch-pan-y bg-cover bg-fixed backdrop-brightness-95"
         style={{ touchAction: "pan-y" }}
         {...swipeHandlers}
       >
-        <div className="max-w-[820px] mx-auto space-y-4">
-          {messages.map((msg) => {
-            const senderId = msg.sender?._id || msg.senderId;
-            const isMine = senderId === authUser._id;
-
-            return (
-              <div key={msg._id} className={`flex ${isMine ? "justify-end" : "justify-start"}`}>
-                <div onContextMenu={(e) => onRightClick(e, msg)}
-                  className={`relative group max-w-[85%] lg:max-w-[520px] px-5 py-3 rounded-2xl shadow transition-all 
-                  ${isMine ? "bg-gray-200 text-black rounded-tr-none" : "bg-green-600 text-white rounded-tl-none"} ${openMsgMenu === msg._id ? "z-50" : "z-0"}`}>
-
-                  {!msg.deleted && (
-                    <>
-                      {/* --- PC HOVER BUTTON (Dark & Visible) --- */}
-                      <div className={`absolute top-2 ${isMine ? "-left-12" : "-right-12"} opacity-0 group-hover:opacity-100 hidden lg:block transition-all z-10`}>
-                        <button onClick={(e) => { e.stopPropagation(); setOpenMsgMenu(msg._id); }}
-                          className="bg-gray-200 hover:bg-white text-black font-black w-8 h-8 rounded-full shadow-md flex items-center justify-center transform hover:scale-110 transition-transform">
-                          ⋮
-                        </button>
-                      </div>
-
-                      {/* --- MOBILE VISIBLE BUTTON (Inside Bubble - Darker/Clearer) --- */}
-                      <button onClick={(e) => { e.stopPropagation(); setOpenMsgMenu(msg._id); }}
-                        className="lg:hidden absolute top-2 right-3 bg-black/10 hover:bg-black/20 text-inherit rounded-full w-6 h-6 flex items-center justify-center font-bold text-lg z-10">
-                        ⋮
-                      </button>
-
-                      {/* --- MENU DROPDOWN --- */}
-                      {openMsgMenu === msg._id && (
-                        <div className={`absolute z-50 bg-white text-black shadow-2xl border border-gray-200 rounded-xl py-2 w-40 text-sm font-bold flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-100 ${isMine ? "top-8 right-0" : "top-8 left-0"}`}>
-                          <button onClick={(e) => { e.stopPropagation(); setReplyingTo(msg); setOpenMsgMenu(null); }}
-                            className="text-left px-4 py-3 hover:bg-gray-100 transition-colors">
-                            Reply
-                          </button>
-
-                          {isGroup && !isMine && (
-                            <button onClick={(e) => { e.stopPropagation(); handleReplyPrivately(msg); }}
-                              className="text-left px-4 py-3 hover:bg-gray-100 transition-colors border-t border-gray-100">
-                              Reply Privately
-                            </button>
-                          )}
-
-                          {/* ✅ UPDATED: Delete is ALWAYS shown, permissions checked in modal */}
-                          <button onClick={(e) => { e.stopPropagation(); handleDeleteFromMenu(msg); }}
-                            className="text-left px-4 py-3 hover:bg-red-50 text-red-600 transition-colors border-t border-gray-100">
-                            Delete
-                          </button>
-                        </div>
-                      )}
-                    </>
-                  )}
-
-                  {isGroup && !isMine && <p className="text-xs font-bold mb-1 pr-4">{msg.sender?.fullName}</p>}
-
-                  {(msg.replyTo || msg.replyToGroupMsg) && (
-                    <div className="bg-black/10 border-l-4 border-black/30 p-2 mb-2 rounded text-xs opacity-80">
-                      <p className="font-bold">{(msg.replyTo?.senderId?.fullName || msg.replyTo?.sender?.fullName || msg.replyToGroupMsg?.sender?.fullName)}</p>
-                      <p className="truncate">{(msg.replyTo?.text || msg.replyToGroupMsg?.text || "Image")}</p>
-                    </div>
-                  )}
-
-                  {msg.deleted ? <p className="italic opacity-70 text-sm">This message was deleted</p> : (
-                    <div className="pr-2 w-full">
-                      {msg.text && <p className="whitespace-pre-wrap break-words">{msg.text}</p>}
-
-                      {msg.isViewOnce && (msg.image || msg.video) ? (
-                        <div
-                          onClick={() => setViewOnceModal(msg)}
-                          className={`flex items-center gap-3 p-3 mt-2 rounded-xl cursor-pointer transition-colors shadow-inner border border-white/20
-                                  ${isMine ? "bg-black/10 hover:bg-black/20" : "bg-black/20 hover:bg-black/30"}`}
-                        >
-                          <span className="text-2xl drop-shadow-md">{msg.image ? "📷" : "🎥"}</span>
-                          <div className="flex flex-col">
-                            <span className="font-bold tracking-wide">{msg.image ? "Photo" : "Video"}</span>
-                            <span className="text-[10px] opacity-70 flex items-center gap-1 font-semibold uppercase tracking-wider"><span className="w-3 h-3 text-[8px] border border-current rounded-full flex items-center justify-center">1</span> View Once</span>
-                          </div>
-                        </div>
-                      ) : (
-                        <>
-                          {msg.image && <img src={msg.image} className="mt-2 rounded-lg max-h-60 max-w-full object-cover shadow-sm border border-black/10" />}
-                          {msg.video && <video src={msg.video} controls preload="metadata" className="mt-2 rounded-lg max-h-60 max-w-full object-cover bg-black shadow-sm" />}
-                        </>
-                      )}
-
-                      {msg.audio && (
-                        <div className="mt-1">
-                          <AudioMessage src={msg.audio} isMine={isMine} />
-                        </div>
-                      )}
-
-                      {/* Document bubble */}
-                      {msg.document && (() => {
-                        const fname = msg.documentName && msg.documentName.trim() ? msg.documentName.trim() : "Document";
-                        const ext = fname.includes(".") ? fname.split(".").pop().toUpperCase() : "FILE";
-                        const extColor = ext === "PDF" ? "bg-red-500" : ext === "DOC" || ext === "DOCX" ? "bg-blue-500" : "bg-gray-500";
-                        return (
-                          <div className="mt-2 rounded-2xl overflow-hidden border border-gray-200 shadow-lg w-[240px] bg-white">
-                            {/* File header */}
-                            <div className="flex items-center gap-3 px-4 py-3 bg-gray-50 border-b border-gray-100">
-                              <div className={`w-10 h-10 rounded-xl ${extColor} flex items-center justify-center flex-shrink-0 shadow-sm`}>
-                                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                </svg>
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-bold truncate text-gray-800">{fname}</p>
-                                <span className={`inline-block text-[10px] font-bold px-1.5 py-0.5 rounded mt-0.5 ${extColor} text-white`}>{ext}</span>
-                              </div>
-                            </div>
-                            {/* Action row */}
-                            <div className="flex divide-x divide-gray-100">
-                              <a
-                                href={msg.document}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold text-indigo-600 hover:bg-indigo-50 transition-colors"
-                              >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                </svg>
-                                View
-                              </a>
-                              <a
-                                href={msg.document}
-                                download={fname}
-                                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold text-gray-600 hover:bg-gray-50 transition-colors"
-                              >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                                </svg>
-                                Download
-                              </a>
-                            </div>
-                          </div>
-                        );
-                      })()}
-
-                      {/* Call Log Message */}
-                      {msg.messageType === "call_log" && (
-                        <div className={`flex flex-col gap-2 p-1 ${isMine ? 'text-gray-800' : 'text-white'}`}>
-                          <div className="flex items-center gap-3">
-                            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isMine ? 'bg-black/5' : 'bg-white/20'}`}>
-                              {msg.callLog?.status === "missed" ? <PhoneMissed className="w-5 h-5 text-red-400" /> : 
-                               msg.callLog?.status === "rejected" ? <PhoneMissed className="w-5 h-5 text-orange-400" /> :
-                               <Phone className="w-5 h-5 text-current" />}
-                            </div>
-                            <div>
-                              <p className="text-sm font-bold uppercase tracking-wide">
-                                {msg.callLog?.status === "missed" ? "Missed Voice Call" : 
-                                 msg.callLog?.status === "rejected" ? "Declined Voice Call" : "Voice Call"}
-                              </p>
-                              <div className="flex items-center gap-2 text-[10px] opacity-70 font-bold">
-                                {msg.callLog?.status === "completed" && (
-                                  <>
-                                    <Clock className="w-3 h-3" />
-                                    <span>{formatDuration(msg.callLog.duration)}</span>
-                                  </>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                          {!isMine && (msg.callLog?.status === "missed" || msg.callLog?.status === "rejected") && (
-                            <button 
-                              onClick={() => callUser(activeChat.data)}
-                              className="mt-2 w-full py-2 bg-white/10 hover:bg-white/20 rounded-xl text-xs font-bold transition-all border border-white/10"
-                            >
-                              Call Back
-                            </button>
-                          )}
-                        </div>
-                      )}
-
-                      {msg.location?.lat && (
-                        <div className="mt-2">
-                          <a
-                            href={`https://www.google.com/maps?q=${msg.location.lat},${msg.location.lng}`}
-                            target="_blank"
-                            rel="noreferrer"
-                            className={`flex items-center gap-3 p-3 rounded-xl shadow-sm border w-fit transition-colors pointer-events-auto
-                              ${isMine ? 'bg-black/10 hover:bg-black/20 border-black/10 text-black' : 'bg-white/10 hover:bg-white/20 border-white/20 text-white'}`}
-                          >
-                            <span className="text-3xl">📍</span>
-                            <div className="flex flex-col">
-                              <span className="font-bold">Live Location</span>
-                              <span className="text-[10px] opacity-70">{msg.location.lat.toFixed(5)}, {msg.location.lng.toFixed(5)}</span>
-                              <span className="text-[10px] underline opacity-70">Open in Maps →</span>
-                            </div>
-                          </a>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  <div className="flex items-center justify-end gap-1 mt-1">
-                    <p className="text-[11px] opacity-70">{formatMessageTime(msg.createdAt)}</p>
-                    {isMine && !isGroup && renderStatusIcon(msg.status)}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-          <div ref={bottomRef} />
+        <div className="max-w-[860px] mx-auto w-full">
+          {messages.map((msg) => (
+            <MessageItem 
+              key={msg._id}
+              msg={msg}
+              isMine={(msg.sender?._id || msg.senderId) === authUser._id}
+              isGroup={isGroup}
+              authUser={authUser}
+              onRightClick={onRightClick}
+              openMsgMenu={openMsgMenu}
+              setOpenMsgMenu={setOpenMsgMenu}
+              setReplyingTo={setReplyingTo}
+              handleReplyPrivately={handleReplyPrivately}
+              handleDeleteFromMenu={handleDeleteFromMenu}
+              setViewOnceModal={setViewOnceModal}
+              callUser={callUser}
+              formatMessageTime={formatMessageTime}
+              renderStatusIcon={renderStatusIcon}
+              activeChat={activeChat}
+            />
+          ))}
+          <div ref={bottomRef} className="h-4" />
         </div>
       </div>
 

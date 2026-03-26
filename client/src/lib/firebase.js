@@ -19,7 +19,12 @@ export const requestFirebaseToken = async () => {
     try {
         const permission = await Notification.requestPermission();
         if (permission === "granted") {
-            const token = await getToken(messaging, { vapidKey: "BIyAC1bS_A6hdUcbIipHujTVipOeHigdZK1UsUJHBNaIRAZG0v1v2hOcx_5OhHmXcYLBBbJKKN_qqpJAmKRlscc" });
+            // Wait for service worker to be ready to avoid 'failed-service-worker-registration'
+            const registration = await navigator.serviceWorker.ready;
+            const token = await getToken(messaging, { 
+                vapidKey: "BIyAC1bS_A6hdUcbIipHujTVipOeHigdZK1UsUJHBNaIRAZG0v1v2hOcx_5OhHmXcYLBBbJKKN_qqpJAmKRlscc",
+                serviceWorkerRegistration: registration
+            });
             return token;
         } else {
             console.warn("Firebase Notification permission denied by user.");

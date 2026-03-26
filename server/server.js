@@ -230,6 +230,8 @@ connectDB()
           scheduledAt: { $lte: in15 },
         }).populate("creatorId", "fullName email fcmToken");
 
+        if (toWarn.length > 0) console.log(`[ReminderCron] Warning ${toWarn.length} reminders.`);
+
         for (const rem of toWarn) {
           rem.notified15Min = true;
           await rem.save();
@@ -263,6 +265,8 @@ connectDB()
           executed: false,
           scheduledAt: { $lte: now },
         }).populate("creatorId", "fullName fcmToken");
+
+        if (toExecute.length > 0) console.log(`[ReminderCron] Executing ${toExecute.length} reminders.`);
 
         for (const rem of toExecute) {
           rem.executed = true;

@@ -22,3 +22,12 @@ createRoot(document.getElementById("root")).render(
     </BrowserRouter>
   </GoogleOAuthProvider>
 );
+
+// Explicit Service Worker Registration for FCM
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/firebase-messaging-sw.js')
+      .then(reg => console.log('✅ Service Worker registered:', reg.scope))
+      .catch(err => console.error('❌ Service Worker registration failed:', err));
+  });
+}

@@ -58,7 +58,7 @@ const HomePage = () => {
       )}
 
       <div
-        className={`flex-1 transition-all duration-300
+        className={`flex-1 transition-all duration-300 gap-0
         /* MOBILE: Default to block (stacking) */
         block
         /* DESKTOP: Switch to Grid */
