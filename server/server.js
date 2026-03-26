@@ -134,6 +134,27 @@ app.use("/api/reminders", reminderRoutes);
 app.use("/api/scheduled", scheduledMessageRoutes);
 app.use("/api/calls", callRoutes);
 
+// --- SMTP DEBUG ROUTE ---
+app.get("/api/debug/smtp", async (req, res) => {
+  try {
+    const { transporter } = await import("./lib/mailer.js");
+    transporter.verify((error, success) => {
+      if (error) {
+        res.status(500).json({ success: false, message: "SMTP Connection Failed", error: error.message });
+      } else {
+        res.json({ success: true, message: "SMTP Server is ready" });
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// Default route
+app.get("/", (req, res) => {
+  res.send("API is running... (Chat App)");
+});
+
 app.get("/api/status", (req, res) => {
   res.send("Server is live");
 });
@@ -158,6 +179,11 @@ const PORT = process.env.PORT || 5001;
 connectDB()
   .then(() => {
     server.listen(PORT, () => console.log(`Server running on PORT ${PORT}`));
+  })
+  .catch((err) => {
+    console.error("Database connection failed:", err.message);
+    process.exit(1);
+  });
 
     /* ===================== SCHEDULED MESSAGE CRON =====================
        Runs every 60s. Finds unsent scheduled messages whose time has
