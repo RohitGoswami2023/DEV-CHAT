@@ -179,15 +179,9 @@ const PORT = process.env.PORT || 5001;
 connectDB()
   .then(() => {
     server.listen(PORT, () => console.log(`Server running on PORT ${PORT}`));
-  })
-  .catch((err) => {
-    console.error("Database connection failed:", err.message);
-    process.exit(1);
-  });
 
     /* ===================== SCHEDULED MESSAGE CRON =====================
-       Runs every 60s. Finds unsent scheduled messages whose time has
-       come, sends them as real messages via socket, marks sent: true.
+       Runs every 60s. Finds unsent scheduled messages that are due.
     ================================================================ */
     setInterval(async () => {
       try {
@@ -199,81 +193,61 @@ connectDB()
         }).populate("senderId", "fullName profilePic").populate("receiverId");
 
         for (const sched of due) {
-          const encryptedText = encryptForCron(sched.text);
+          const encText = encryptForCron(sched.text);
           const newMsg = await Message.create({
             senderId: sched.senderId._id,
             receiverId: sched.receiverId._id,
-            text: encryptedText,
+            text: encText,
             status: "sent",
           });
+
           const populated = await newMsg.populate([{ path: "senderId", select: "fullName profilePic" }]);
-          // Emit to receiver
+          
           const receiverSocket = userSocketMap[sched.receiverId._id.toString()];
-          if (receiverSocket) io.to(receiverSocket).emit("newMessage", { ...populated._doc, senderId: sched.senderId._id, text: sched.text });
-          // Emit to sender too (to update their own view)
+          if (receiverSocket) io.to(receiverSocket).emit("newMessage", { ...populated._doc, text: sched.text });
+          
           const senderSocket = userSocketMap[sched.senderId._id.toString()];
-          if (senderSocket) io.to(senderSocket).emit("newMessage", { ...populated._doc, senderId: sched.senderId._id, text: sched.text });
+          if (senderSocket) io.to(senderSocket).emit("newMessage", { ...populated._doc, text: sched.text });
 
           sched.sent = true;
           await sched.save();
         }
-      } catch (err) { console.error("Scheduled message cron error:", err); }
+      } catch (err) { console.error("Scheduled message cron error:", err.message); }
     }, 60000);
 
     /* ===================== REMINDER CRON WORKER =====================
-       Runs every 60 seconds. Two phases:
-       1) 15-min warning  → push notification + email
-       2) Execution       → creates real message + socket broadcast
+       Runs every 60 seconds. Handles 15-min warnings and execution.
     ================================================================ */
     setInterval(async () => {
       try {
         const now = new Date();
         const in15 = new Date(now.getTime() + 15 * 60 * 1000);
 
-        // ── Phase 1: 15-min warning ──────────────────────────────────
+        // Phase 1: 15-min warning
         const toWarn = await Reminder.find({
           executed: false,
-          notified15Min: { $ne: true }, // catches false AND missing/undefined
+          notified15Min: { $ne: true },
           scheduledAt: { $lte: in15 },
         }).populate("creatorId", "fullName email fcmToken");
-
-        console.log(`[Cron] ${now.toISOString()} — ${toWarn.length} reminder(s) to warn`);
 
         for (const rem of toWarn) {
           rem.notified15Min = true;
           await rem.save();
 
-          console.log(`[Cron] Warning reminder "${rem.text.substring(0,40)}" — creator: ${rem.creatorId?.email}`);
-
-          // Browser push
           if (rem.creatorId?.fcmToken) {
             try {
               await admin.messaging().send({
                 token: rem.creatorId.fcmToken,
-                notification: {
-                  title: "⏰ Reminder in 15 min",
-                  body: rem.text.substring(0, 100),
-                },
+                notification: { title: "⏰ Reminder in 15 min", body: rem.text.substring(0, 100) },
                 data: { type: "reminder", chatId: rem.chatId, isGroup: String(rem.isGroup) },
               });
-              console.log(`[Cron] FCM push sent to ${rem.creatorId.fullName}`);
-            } catch (e) { console.error("[Cron] FCM reminder warn error:", e.message); }
+            } catch (e) { console.error("[Cron] FCM error:", e.message); }
           }
 
-          // Email
-          if (rem.creatorId?.email) {
-            if (rem.sendEmail) {
-              console.log(`[Cron] Sending reminder email to ${rem.creatorId.email}...`);
-              await sendReminderEmail(rem.creatorId.email, rem);
-              console.log(`[Cron] ✅ Email sent to ${rem.creatorId.email}`);
-            } else {
-              console.log(`[Cron] Email skipped for reminder ${rem._id} (sendEmail is false)`);
-            }
-          } else {
-            console.warn(`[Cron] ⚠️ No email found for creator of reminder ${rem._id}`);
+          if (rem.creatorId?.email && rem.sendEmail) {
+            await sendReminderEmail(rem.creatorId.email, rem);
           }
 
-          // Socket to all participants so bell badge updates
           const warnPayload = { type: "reminder15MinWarning", reminder: rem };
           if (rem.isGroup) {
             const { default: Group } = await import("./models/Group.js");
@@ -284,7 +258,7 @@ connectDB()
           }
         }
 
-        // ── Phase 2: Execute due reminders ──────────────────────────
+        // Phase 2: Execution
         const toExecute = await Reminder.find({
           executed: false,
           scheduledAt: { $lte: now },
@@ -296,39 +270,22 @@ connectDB()
 
           try {
             if (rem.isGroup) {
-              const msg = await GroupMessage.create({
-                group: rem.chatId,
-                sender: rem.creatorId._id,
-                text: rem.text,
-              });
+              const msg = await GroupMessage.create({ group: rem.chatId, sender: rem.creatorId._id, text: rem.text });
               const populated = await msg.populate("sender", "fullName profilePic");
               const { default: Group } = await import("./models/Group.js");
               const grp = await Group.findById(rem.chatId);
-              if (grp) {
-                grp.members.forEach(mid => {
-                  const s = userSocketMap[mid.toString()];
-                  if (s) io.to(s).emit("newMessage", populated);
-                });
-              }
+              if (grp) grp.members.forEach(mid => { const s = userSocketMap[mid.toString()]; if (s) io.to(s).emit("newMessage", populated); });
             } else {
               const encText = encryptForCron(rem.text);
               const receiverOnline = userSocketMap[rem.chatId];
-              const msg = await Message.create({
-                senderId: rem.creatorId._id,
-                receiverId: rem.chatId,
-                text: encText,
-                status: receiverOnline ? "delivered" : "sent",
-              });
+              const msg = await Message.create({ senderId: rem.creatorId._id, receiverId: rem.chatId, text: encText, status: receiverOnline ? "delivered" : "sent" });
               const plainMsg = { ...msg._doc, text: rem.text };
               if (receiverOnline) io.to(receiverOnline).emit("newMessage", plainMsg);
               const senderSocket = userSocketMap[rem.creatorId._id.toString()];
               if (senderSocket) io.to(senderSocket).emit("newMessage", plainMsg);
             }
-          } catch (execErr) {
-            console.error("Reminder execute error:", execErr.message);
-          }
+          } catch (execErr) { console.error("Reminder execute error:", execErr.message); }
 
-          // Socket: tell UI to remove this reminder from the bell
           const removePayload = { reminderId: rem._id.toString() };
           if (rem.isGroup) {
             const { default: Group } = await import("./models/Group.js");
@@ -338,12 +295,10 @@ connectDB()
             [rem.creatorId._id.toString(), rem.chatId].forEach(uid => { const s = userSocketMap[uid]; if (s) io.to(s).emit("reminderExecuted", removePayload); });
           }
         }
-      } catch (cronErr) {
-        console.error("[ReminderCron] error:", cronErr.message);
-      }
-    }, 60_000); // every 60 seconds
+      } catch (cronErr) { console.error("[ReminderCron] error:", cronErr.message); }
+    }, 60000);
   })
   .catch((err) => {
-    console.error("MongoDB connection error:", err);
+    console.error("Database connection failed:", err.message);
     process.exit(1);
   });

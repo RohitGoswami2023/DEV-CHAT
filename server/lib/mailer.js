@@ -3,10 +3,13 @@ import nodemailer from "nodemailer";
 import dotenv from "dotenv";
 dotenv.config();
 
-const transporter = nodemailer.createTransport({
+const smtpPort = parseInt(process.env.SMTP_PORT) || 587;
+const smtpSecure = process.env.SMTP_SECURE === "true" || smtpPort === 465;
+
+export const transporter = nodemailer.createTransport({
   host: "smtp-relay.brevo.com", 
-  port: 587,
-  secure: false,
+  port: smtpPort,
+  secure: smtpSecure,
   auth: {
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS,
@@ -16,9 +19,10 @@ const transporter = nodemailer.createTransport({
 // Verify connection configuration
 transporter.verify((error, success) => {
   if (error) {
-    console.error("❌ SMTP Connection Error:", error.message);
+    console.error(`❌ SMTP Connection Error (Port ${smtpPort}):`, error.message);
+    if (smtpPort === 587) console.warn("💡 Tip: Try setting SMTP_PORT=2525 in your environment variables if 587 is timed out.");
   } else {
-    console.log("✅ SMTP Server is ready to take our messages");
+    console.log(`✅ SMTP Server is ready on port ${smtpPort}`);
   }
 });
 
