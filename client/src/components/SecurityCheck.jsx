@@ -89,7 +89,7 @@ const SecurityCheck = () => {
       </div>
 
       {/* SESSION & AUTH INFO */}
-      <div className="bg-gradient-to-br from-indigo-600 to-purple-700 rounded-[2.5rem] p-6 text-white mb-6 shadow-xl relative overflow-hidden">
+      <div className="bg-gradient-to-br from-indigo-600 to-purple-700 rounded-[2rem] p-6 pb-12 text-white mb-6 shadow-xl relative overflow-hidden">
         <div className="absolute top-0 right-0 p-4 opacity-10">
           <Lock className="w-20 h-20" />
         </div>

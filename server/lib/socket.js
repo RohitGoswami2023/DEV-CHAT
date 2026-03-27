@@ -40,7 +40,7 @@ export const initSocket = (server) => {
         return; 
       }
 
-      callStartTimeMap[socket.id] = { startTime: new Date(), from, to, status: "ongoing" };
+      callStartTimeMap[socket.id] = { startTime: new Date(), from, to, status: "ongoing", isAnswered: false };
 
       // 🔥 Send Push Notification for Background/Force-Delivery
       try {
@@ -82,7 +82,12 @@ export const initSocket = (server) => {
     socket.on("answerCall", ({ to, signal }) => {
       const targetSocket = userSocketMap[to];
       if (targetSocket) {
-        if (callStartTimeMap[targetSocket]) callStartTimeMap[targetSocket].startTime = new Date();
+        // ✅ Mark call as answered
+        const callInfo = callStartTimeMap[targetSocket] || callStartTimeMap[socket.id];
+        if (callInfo) {
+            callInfo.isAnswered = true;
+            callInfo.startTime = new Date(); // Start actual duration from answer
+        }
         io.to(targetSocket).emit("callAnswered", signal);
       }
     });
@@ -92,20 +97,23 @@ export const initSocket = (server) => {
       const callInfo = callStartTimeMap[socket.id] || callStartTimeMap[targetSocket];
       if (callInfo && callInfo.status === "ongoing") {
         const endTime = new Date();
-        const duration = Math.floor((endTime - callInfo.startTime) / 1000);
+        const isAnswered = callInfo.isAnswered;
+        const duration = isAnswered ? Math.floor((endTime - callInfo.startTime) / 1000) : 0;
+        const status = isAnswered ? "completed" : "missed"; // ✅ Missed if never answered
+        
         createCallLogEntry({ 
           caller: callInfo.from, 
           receiver: callInfo.to, 
           startTime: callInfo.startTime, 
           endTime, 
           duration, 
-          status: "completed" 
+          status 
         });
         new Message({
           senderId: callInfo.from,
           receiverId: callInfo.to,
           messageType: "call_log",
-          callLog: { duration, status: "completed", callType: "voice" }
+          callLog: { duration, status, callType: "voice" }
         }).save().then(m => {
           io.to(userSocketMap[callInfo.from]).emit("newMessage", m);
           io.to(userSocketMap[callInfo.to]).emit("newMessage", m);
