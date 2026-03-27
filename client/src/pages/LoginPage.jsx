@@ -14,20 +14,20 @@ const PROJECT_DETAILS = {
     name: "Dev Chat",
     version: "Stable Version 1.1",
     tagline: "Connect, Share, and Collaborate in Real-Time.",
-    description: "Dev Chat is a secure, web-based messaging platform designed for students and professionals. Version 1.1 introduces high-quality voice calls, advanced group management with history control, and robust document support including PDF and TXT previews.",
+    description: "Dev Chat is a secure, premium messaging platform designed for seamless collaboration. Version 1.1 introduces High-Quality Voice Calls, View Once Media, and Advanced Privacy Controls like user blocking and message scheduling.",
     features: [
         " Firebase Notification",
         " Google Sign In",
         " Real-Time Socket.io",
         " High-Quality Voice Calls",
-        " Video & Media Sending",
+        " View Once Feature",
+        " Block & Mute Users",
+        " Privacy Protection",
         " TXT & PDF Doc Viewer",
         " Live Location Sharing",
         " Advanced Group Mgmt",
-        " End-to-End Encryption",
         " Message Scheduling",
-        " Smart Reminder",
-        " Modern Security Check"
+        " End-to-End Encryption"
     ]
 };
 

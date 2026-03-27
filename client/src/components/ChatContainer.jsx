@@ -466,41 +466,43 @@ const ChatContainer = () => {
       {...swipeHandlers}
     >
       {/* HEADER */}
-      <div className="flex items-center justify-between px-4 lg:px-6 py-3 lg:py-4 border-b bg-white/30 backdrop-blur-md sticky top-0 z-10">
-        <div className="flex items-center gap-3 overflow-hidden">
-          <button onClick={() => setActiveChat(null)} className="lg:hidden text-2xl mr-1 hover:bg-white/20 rounded-full w-8 h-8 flex items-center justify-center">←</button>
-          <p className="font-bold text-lg truncate max-w-[150px] lg:max-w-none">
-            {isGroup ? activeChat.data.name : activeChat.data.fullName}
-          </p>
-          {!isGroup && (
-            <button onClick={handleDeleteConversation} className="ml-2 text-[10px] uppercase tracking-wider font-bold text-black hover:text-white transition-colors bg-transparent border-2 border-red-600 hover:bg-red-600 px-2 py-0.5 rounded">
-              Delete Chat
-            </button>
-          )}
-        </div>
-        <div className="flex gap-2 items-center">
-          {/* Active Call Indicator */}
-          {callActive && callAccepted && (
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-green-500/10 rounded-full border border-green-500/20 mr-2">
-              <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-              <span className="text-green-600 font-mono text-xs font-bold">{formatDuration(duration)}</span>
-            </div>
-          )}
-          
-          {/* Voice call button — private chats only */}
-          {!isGroup && !callActive && (
-            <button
-              onClick={() => callUser(activeChat.data)}
-              title="Voice Call"
-              className="w-10 h-10 flex items-center justify-center rounded-2xl bg-green-500/10 hover:bg-green-500/20 text-green-600 transition-all active:scale-90"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-              </svg>
-            </button>
-          )}
-          <button onClick={() => setActiveChat(null)} className="font-bold hidden lg:block text-sm">Close</button>
-          <button onClick={toggleRightSidebar} className="text-2xl font-bold p-1 hover:bg-black/5 rounded">‹</button>
+      <div className="px-4 lg:px-8 py-3 lg:py-4 border-b bg-white/30 backdrop-blur-lg sticky top-0 z-10">
+        <div className="max-w-[820px] mx-auto flex items-center justify-between gap-2 overflow-hidden">
+          <div className="flex items-center gap-3 overflow-hidden">
+            <button onClick={() => setActiveChat(null)} className="lg:hidden text-2xl mr-1 hover:bg-white/20 rounded-full w-8 h-8 flex items-center justify-center">←</button>
+            <p className="font-bold text-lg truncate max-w-[150px] lg:max-w-none">
+              {isGroup ? activeChat.data.name : activeChat.data.fullName}
+            </p>
+            {!isGroup && (
+              <button onClick={handleDeleteConversation} className="ml-2 text-[10px] uppercase tracking-wider font-bold text-black hover:text-white transition-colors bg-transparent border-2 border-red-600 hover:bg-red-600 px-2 py-0.5 rounded">
+                Delete Chat
+              </button>
+            )}
+          </div>
+          <div className="flex gap-2 items-center flex-shrink-0">
+            {/* Active Call Indicator */}
+            {callActive && callAccepted && (
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-green-500/10 rounded-full border border-green-500/20 mr-2">
+                <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                <span className="text-green-600 font-mono text-xs font-bold">{formatDuration(duration)}</span>
+              </div>
+            )}
+            
+            {/* Voice call button — private chats only */}
+            {!isGroup && !callActive && (
+              <button
+                onClick={() => callUser(activeChat.data)}
+                title="Voice Call"
+                className="w-10 h-10 flex items-center justify-center rounded-2xl bg-green-500/10 hover:bg-green-500/20 text-green-600 transition-all active:scale-90"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                </svg>
+              </button>
+            )}
+            <button onClick={() => setActiveChat(null)} className="font-bold hidden lg:block text-sm">Close</button>
+            <button onClick={toggleRightSidebar} className="text-2xl font-bold p-1 hover:bg-black/5 rounded">‹</button>
+          </div>
         </div>
       </div>
 
@@ -813,151 +815,153 @@ const ChatContainer = () => {
           </p>
         </div>
       ) : (
-        <div className="px-4 lg:px-6 pt-3 pb-6 lg:py-4 border-t bg-white/50 relative">
-          {(previewImage || previewVideo || locationPayload || previewDocument || (audioUrl && !isRecording)) && (
-            <div className="absolute bottom-full left-0 mb-2 p-4 bg-white/90 backdrop-blur shadow-lg rounded-t-2xl flex items-center gap-4 w-full lg:w-auto">
-              {previewImage && (
-                <div className="relative group">
-                  <img src={previewImage} alt="Preview" className="w-20 h-20 object-cover rounded-lg border-2 border-green-600" />
-                  <button onClick={() => setPreviewImage(null)} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600">✕</button>
-                </div>
-              )}
-              {previewVideo && (
-                <div className="relative group">
-                  <video src={previewVideo} className="w-20 h-20 object-cover rounded-lg border-2 border-blue-600" />
-                  <button onClick={() => setPreviewVideo(null)} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600">✕</button>
-                </div>
-              )}
-              {previewDocument && (
-                <div className="relative flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="w-7 h-7 text-red-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  <span className="text-xs font-semibold text-gray-800 max-w-[120px] truncate">{documentName}</span>
-                  <button onClick={() => { setPreviewDocument(null); setDocumentName(""); }} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600">✕</button>
-                </div>
-              )}
-              {locationPayload && (
-                <div className="relative flex items-center gap-2 bg-green-50 border border-green-200 rounded-xl px-3 py-2">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                  <span className="text-xs font-semibold text-green-800">Location ready</span>
-                  <button onClick={() => setLocationPayload(null)} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600">✕</button>
-                </div>
-              )}
-              {audioUrl && !isRecording && (
-                <div className="relative group flex items-center bg-gray-100 rounded-lg p-2 border border-gray-300">
-                  <audio src={audioUrl} controls controlsList="nodownload noplaybackrate" className="h-10 w-48" />
-                  <button onClick={() => setAudioUrl(null)} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 z-10">✕</button>
-                </div>
-              )}
-              <div className="text-sm">
-                <p className="font-bold text-gray-700">{audioUrl ? "Audio ready" : previewVideo ? "Video selected" : locationPayload ? "📍 Location ready" : "Image selected"}</p>
-                <p className="text-xs text-gray-500 mt-1">{isViewOnce ? "View Once Enabled" : ""}</p>
-              </div>
-            </div>
-          )}
-
-          {showMentions && mentionList.length > 0 && (
-            <div className="absolute bottom-full left-6 w-64 bg-white border shadow-2xl rounded-t-xl overflow-hidden mb-2">
-              {mentionList.map(m => (
-                <div key={m._id} onClick={() => insertMention(m)} className="flex items-center gap-3 p-3 hover:bg-gray-100 cursor-pointer">
-                  <img src={m.profilePic || assets.avatar_icon} className="w-8 h-8 rounded-full" /><span className="font-semibold text-sm">{m.fullName}</span>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {replyingTo && (
-            <div className="flex items-center justify-between bg-gray-100 p-2 mb-2 border-l-4 border-green-600 rounded">
-              <div className="text-xs truncate max-w-[250px] lg:max-w-md">
-                <span className="font-bold block">Replying to {replyingTo.sender?.fullName || replyingTo.senderId?.fullName}</span>
-                <span className="opacity-70">{replyingTo.text || "Media"}</span>
-              </div>
-              <button onClick={() => setReplyingTo(null)} className="p-1">✕</button>
-            </div>
-          )}
-
-          <div className="flex gap-2 lg:gap-3 items-center w-full">
-            {isRecording ? (
-              <div className="flex-1 flex items-center justify-between bg-red-50 text-red-600 rounded-full px-5 py-2 lg:py-3 border border-red-200 shadow-sm">
-                <div className="flex items-center gap-3">
-                  <span className="w-3 h-3 bg-red-600 rounded-full shadow-sm animate-ping"></span>
-                  <span className="font-bold text-sm tracking-widest">{formatRecordingTime(recordingTime)}</span>
-                </div>
-                <div className="flex gap-4 items-center">
-                  <button onClick={cancelRecording} className="text-xl font-bold text-red-400 hover:text-red-700 hover:scale-110 active:scale-95 transition-all">✕</button>
-                  <button onClick={stopRecording} className="bg-red-600 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold hover:scale-110 shadow-md">◼</button>
-                </div>
-              </div>
-            ) : (
-              <div className="flex-1 flex items-center bg-white border border-gray-300 rounded-3xl pr-2 shadow-sm focus-within:ring-2 focus-within:ring-green-400 focus-within:border-transparent transition-all">
-                <input
-                  value={input}
-                  onChange={handleInputChange}
-                  onKeyDown={(e) => e.key === "Enter" && handleSend()}
-                  placeholder="Type a message..."
-                  className="flex-1 bg-transparent text-black placeholder:text-gray-500 font-medium px-4 lg:px-5 py-2.5 lg:py-3.5 outline-none rounded-l-3xl"
-                />
-
-                <div className="flex items-center gap-1">
-                  {/* Attachment (📎 → SVG paperclip) */}
-                  <input hidden type="file" id="media" accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.txt" onChange={handleMedia} />
-                  <label htmlFor="media" title="Attach file" className="cursor-pointer hover:bg-gray-100 rounded-full p-2 transition-colors flex items-center justify-center opacity-70 hover:opacity-100">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+        <div className="px-6 lg:px-10 pt-4 pb-8 lg:py-6 border-t bg-white/60 backdrop-blur-xl relative">
+          <div className="max-w-[820px] mx-auto w-full">
+            {(previewImage || previewVideo || locationPayload || previewDocument || (audioUrl && !isRecording)) && (
+              <div className="absolute bottom-full left-0 mb-2 p-4 bg-white/90 backdrop-blur shadow-lg rounded-t-2xl flex items-center gap-4 w-full lg:w-auto">
+                {previewImage && (
+                  <div className="relative group">
+                    <img src={previewImage} alt="Preview" className="w-20 h-20 object-cover rounded-lg border-2 border-green-600" />
+                    <button onClick={() => setPreviewImage(null)} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600">✕</button>
+                  </div>
+                )}
+                {previewVideo && (
+                  <div className="relative group">
+                    <video src={previewVideo} className="w-20 h-20 object-cover rounded-lg border-2 border-blue-600" />
+                    <button onClick={() => setPreviewVideo(null)} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600">✕</button>
+                  </div>
+                )}
+                {previewDocument && (
+                  <div className="relative flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="w-7 h-7 text-red-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
-                  </label>
-
-                  {/* Location button (admin-only in groups) → SVG map pin */}
-                  {(!isGroup || activeChat.data.admins?.some(a => (a._id || a) === authUser._id)) && (
-                    <button
-                      onClick={handleShareLocation}
-                      disabled={isFetchingLocation}
-                      title="Share Location"
-                      className={`rounded-full p-2 transition-colors flex items-center justify-center opacity-70 hover:opacity-100 hover:bg-gray-100 ${locationPayload ? 'opacity-100 bg-green-100 text-green-600' : 'text-gray-600'} ${isFetchingLocation ? 'animate-pulse' : ''}`}
-                    >
-                      {isFetchingLocation ? (
-                        <div className="w-4 h-4 border-2 border-green-600/30 border-t-green-600 rounded-full animate-spin"></div>
-                      ) : (
-                        <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                        </svg>
-                      )}
-                    </button>
-                  )}
-
-                  {/* View Once Toggle */}
-                  {(previewImage || previewVideo) && (
-                    <button onClick={() => setIsViewOnce(!isViewOnce)}
-                      className={`w-7 h-7 mr-1 rounded-full font-black text-xs flex items-center justify-center transition-all ${isViewOnce ? "bg-blue-600 text-white shadow-md ring-2 ring-blue-300 scale-105" : "bg-gray-200 text-gray-500 hover:bg-gray-300"}`}>
-                      1
-                    </button>
-                  )}
-
-                  {/* Mic / Send Button */}
-                  {!input.trim() && !previewImage && !previewVideo && !audioUrl && !locationPayload && !previewDocument ? (
-                    <button onClick={startRecording} className="bg-green-500 hover:bg-green-600 text-white rounded-full w-9 h-9 flex items-center justify-center shadow-md hover:scale-105 active:scale-95 transition-all outline-none mr-1">
-                      {/* SVG Mic */}
-                      <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-                      </svg>
-                    </button>
-                  ) : (
-                    <button onClick={handleSend} disabled={isSending} className={`text-white w-9 h-9 rounded-full flex items-center justify-center shadow-md transition-all outline-none mr-1 ${isSending ? 'bg-gray-400 cursor-not-allowed opacity-70' : 'bg-blue-600 hover:bg-blue-700 hover:scale-105 active:scale-95'}`}>
-                      {isSending ? (
-                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                      ) : (
-                        <img src={assets.send_button} className="w-4 brightness-0 invert" alt="Send" />
-                      )}
-                    </button>
-                  )}
+                    <span className="text-xs font-semibold text-gray-800 max-w-[120px] truncate">{documentName}</span>
+                    <button onClick={() => { setPreviewDocument(null); setDocumentName(""); }} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600">✕</button>
+                  </div>
+                )}
+                {locationPayload && (
+                  <div className="relative flex items-center gap-2 bg-green-50 border border-green-200 rounded-xl px-3 py-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    <span className="text-xs font-semibold text-green-800">Location ready</span>
+                    <button onClick={() => setLocationPayload(null)} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600">✕</button>
+                  </div>
+                )}
+                {audioUrl && !isRecording && (
+                  <div className="relative group flex items-center bg-gray-100 rounded-lg p-2 border border-gray-300">
+                    <audio src={audioUrl} controls controlsList="nodownload noplaybackrate" className="h-10 w-48" />
+                    <button onClick={() => setAudioUrl(null)} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 z-10">✕</button>
+                  </div>
+                )}
+                <div className="text-sm">
+                  <p className="font-bold text-gray-700">{audioUrl ? "Audio ready" : previewVideo ? "Video selected" : locationPayload ? "📍 Location ready" : "Image selected"}</p>
+                  <p className="text-xs text-gray-500 mt-1">{isViewOnce ? "View Once Enabled" : ""}</p>
                 </div>
               </div>
             )}
+
+            {showMentions && mentionList.length > 0 && (
+              <div className="absolute bottom-full left-6 w-64 bg-white border shadow-2xl rounded-t-xl overflow-hidden mb-2">
+                {mentionList.map(m => (
+                  <div key={m._id} onClick={() => insertMention(m)} className="flex items-center gap-3 p-3 hover:bg-gray-100 cursor-pointer">
+                    <img src={m.profilePic || assets.avatar_icon} className="w-8 h-8 rounded-full" /><span className="font-semibold text-sm">{m.fullName}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {replyingTo && (
+              <div className="flex items-center justify-between bg-gray-100 p-2 mb-2 border-l-4 border-green-600 rounded">
+                <div className="text-xs truncate max-w-[250px] lg:max-w-md">
+                  <span className="font-bold block">Replying to {replyingTo.sender?.fullName || replyingTo.senderId?.fullName}</span>
+                  <span className="opacity-70">{replyingTo.text || "Media"}</span>
+                </div>
+                <button onClick={() => setReplyingTo(null)} className="p-1">✕</button>
+              </div>
+            )}
+
+            <div className="flex gap-2 lg:gap-3 items-center w-full">
+              {isRecording ? (
+                <div className="flex-1 flex items-center justify-between bg-red-50 text-red-600 rounded-full px-5 py-2 lg:py-3 border border-red-200 shadow-sm">
+                  <div className="flex items-center gap-3">
+                    <span className="w-3 h-3 bg-red-600 rounded-full shadow-sm animate-ping"></span>
+                    <span className="font-bold text-sm tracking-widest">{formatRecordingTime(recordingTime)}</span>
+                  </div>
+                  <div className="flex gap-4 items-center">
+                    <button onClick={cancelRecording} className="text-xl font-bold text-red-400 hover:text-red-700 hover:scale-110 active:scale-95 transition-all">✕</button>
+                    <button onClick={stopRecording} className="bg-red-600 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold hover:scale-110 shadow-md">◼</button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex-1 flex items-center bg-white border border-gray-300 rounded-3xl pr-2 shadow-sm focus-within:ring-2 focus-within:ring-green-400 focus-within:border-transparent transition-all">
+                  <input
+                    value={input}
+                    onChange={handleInputChange}
+                    onKeyDown={(e) => e.key === "Enter" && handleSend()}
+                    placeholder="Type a message..."
+                    className="flex-1 bg-transparent text-black placeholder:text-gray-500 font-medium px-4 lg:px-5 py-2.5 lg:py-3.5 outline-none rounded-l-3xl"
+                  />
+
+                  <div className="flex items-center gap-1">
+                    {/* Attachment (📎 → SVG paperclip) */}
+                    <input hidden type="file" id="media" accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.txt" onChange={handleMedia} />
+                    <label htmlFor="media" title="Attach file" className="cursor-pointer hover:bg-gray-100 rounded-full p-2 transition-colors flex items-center justify-center opacity-70 hover:opacity-100">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                      </svg>
+                    </label>
+
+                    {/* Location button (admin-only in groups) → SVG map pin */}
+                    {(!isGroup || activeChat.data.admins?.some(a => (a._id || a) === authUser._id)) && (
+                      <button
+                        onClick={handleShareLocation}
+                        disabled={isFetchingLocation}
+                        title="Share Location"
+                        className={`rounded-full p-2 transition-colors flex items-center justify-center opacity-70 hover:opacity-100 hover:bg-gray-100 ${locationPayload ? 'opacity-100 bg-green-100 text-green-600' : 'text-gray-600'} ${isFetchingLocation ? 'animate-pulse' : ''}`}
+                      >
+                        {isFetchingLocation ? (
+                          <div className="w-4 h-4 border-2 border-green-600/30 border-t-green-600 rounded-full animate-spin"></div>
+                        ) : (
+                          <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                          </svg>
+                        )}
+                      </button>
+                    )}
+
+                    {/* View Once Toggle */}
+                    {(previewImage || previewVideo) && (
+                      <button onClick={() => setIsViewOnce(!isViewOnce)}
+                        className={`w-7 h-7 mr-1 rounded-full font-black text-xs flex items-center justify-center transition-all ${isViewOnce ? "bg-blue-600 text-white shadow-md ring-2 ring-blue-300 scale-105" : "bg-gray-200 text-gray-500 hover:bg-gray-300"}`}>
+                        1
+                      </button>
+                    )}
+
+                    {/* Mic / Send Button */}
+                    {!input.trim() && !previewImage && !previewVideo && !audioUrl && !locationPayload && !previewDocument ? (
+                      <button onClick={startRecording} className="bg-green-500 hover:bg-green-600 text-white rounded-full w-9 h-9 flex items-center justify-center shadow-md hover:scale-105 active:scale-95 transition-all outline-none mr-1">
+                        {/* SVG Mic */}
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                        </svg>
+                      </button>
+                    ) : (
+                      <button onClick={handleSend} disabled={isSending} className={`text-white w-9 h-9 rounded-full flex items-center justify-center shadow-md transition-all outline-none mr-1 ${isSending ? 'bg-gray-400 cursor-not-allowed opacity-70' : 'bg-blue-600 hover:bg-blue-700 hover:scale-105 active:scale-95'}`}>
+                        {isSending ? (
+                          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                        ) : (
+                          <img src={assets.send_button} className="w-4 brightness-0 invert" alt="Send" />
+                        )}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
