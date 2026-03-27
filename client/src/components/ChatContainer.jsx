@@ -915,7 +915,7 @@ const ChatContainer = () => {
                   </div>
                 </div>
               ) : (
-                <div className="flex-1 flex items-center bg-white border border-gray-300 rounded-3xl shadow-sm focus-within:ring-2 focus-within:ring-green-400 focus-within:border-transparent transition-all ml-2 mr-8 lg:mx-10">
+                <div className="flex-1 flex items-center bg-white border border-gray-300 rounded-3xl shadow-sm focus-within:ring-2 focus-within:ring-green-400 focus-within:border-transparent transition-all mx-6 lg:mx-10">
                   <input
                     value={input}
                     onChange={handleInputChange}
