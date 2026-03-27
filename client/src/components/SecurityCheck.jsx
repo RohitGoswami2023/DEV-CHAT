@@ -119,33 +119,6 @@ const SecurityCheck = () => {
               <p className="text-sm font-bold">{authUser.lastLoginTime ? format(new Date(authUser.lastLoginTime), "MMM d, yyyy • h:mm a") : "Active Session"}</p>
             </div>
           </div>
-
-          {/* LOCATION COORDS */}
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-white/20 rounded-xl">
-              <Navigation className="w-4 h-4" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-[10px] uppercase font-bold opacity-60">Last Login Location</p>
-              {authUser.lastLoginCoords ? (
-                <div className="flex items-center justify-between gap-2">
-                    <p className="text-sm font-bold truncate">
-                        {authUser.lastLoginCoords.lat.toFixed(4)}, {authUser.lastLoginCoords.lng.toFixed(4)}
-                    </p>
-                    <a 
-                        href={mapLink} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-[10px] bg-white text-indigo-700 px-3 py-1 rounded-full font-black uppercase hover:bg-gray-100 transition-colors shadow-sm"
-                    >
-                        View Map
-                    </a>
-                </div>
-              ) : (
-                <p className="text-xs font-medium opacity-70 italic">Location data pending next login</p>
-              )}
-            </div>
-          </div>
         </div>
       </div>
 

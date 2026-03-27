@@ -50,6 +50,7 @@ export const CallProvider = ({ children }) => {
   };
 
   const callUser = async (toUser) => {
+    if (callActive) return toast.error("You are already in a call");
     const s = await getStream();
     if (!s) return;
     callTargetRef.current = toUser._id;
@@ -224,15 +225,28 @@ export const CallProvider = ({ children }) => {
       }
     };
 
+    const onBusy = () => {
+      toast.error("User is on another call");
+      setCallActive(false);
+      setOutgoingCall(null);
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(t => t.stop());
+        streamRef.current = null;
+        setStream(null);
+      }
+    };
+
     socket.on("callIncoming", onIncoming);
     socket.on("callEnded", onEnded);
     socket.on("callRejected", onRejected);
     socket.on("callAnswered", onAnswered);
+    socket.on("callBusy", onBusy);
     return () => {
       socket.off("callIncoming", onIncoming);
       socket.off("callEnded", onEnded);
       socket.off("callRejected", onRejected);
       socket.off("callAnswered", onAnswered);
+      socket.off("callBusy", onBusy);
     };
   }, [socket]);
 

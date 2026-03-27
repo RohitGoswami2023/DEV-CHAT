@@ -30,6 +30,16 @@ export const initSocket = (server) => {
     // VOICE CALL SIGNALING
     socket.on("callUser", async ({ to, signalData, from, callerName, callerPic }) => {
       const targetSocket = userSocketMap[to];
+      
+      // ✅ 1. Check if recipient is already in another call
+      if (targetSocket && callStartTimeMap[targetSocket]) {
+        return socket.emit("callBusy", { name: callerName }); // In a real app, use recipient name if known
+      }
+      // ✅ 2. Check if caller is already in another call (prevents double initiation)
+      if (callStartTimeMap[socket.id]) {
+        return; 
+      }
+
       callStartTimeMap[socket.id] = { startTime: new Date(), from, to, status: "ongoing" };
 
       // 🔥 Send Push Notification for Background/Force-Delivery
@@ -48,8 +58,14 @@ export const initSocket = (server) => {
                 callerName: callerName || "Someone",
                 signal: JSON.stringify(signalData)
             },
-            android: { priority: "high" },
-            apns: { payload: { aps: { contentAvailable: true } } },
+            android: { 
+                priority: "high",
+                notification: {
+                    sound: "default",
+                    clickAction: "FLUTTER_NOTIFICATION_CLICK" // Common for many platforms to trigger click handlers
+                }
+            },
+            apns: { payload: { aps: { contentAvailable: true, sound: "default" } } },
           }).catch(e => console.error("Call FCM Error:", e.message));
         }
       } catch (err) { console.error("Call Notification Fetch Error:", err); }

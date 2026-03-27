@@ -320,6 +320,7 @@ const RightSidebar = () => {
                 className="w-full px-4 py-3 rounded-2xl bg-white/20 border border-white/30 text-sm font-bold outline-none focus:border-white/60 transition-all" />
               <button disabled={isSavingReminder} onClick={async () => {
                 if (!reminderText.trim() || !reminderDate) return toast.error("Fill both fields");
+                if (isSavingReminder) return; 
                 setIsSavingReminder(true);
                 try {
                   await createReminder({ text: reminderText.trim(), chatId: data._id, isGroup, scheduledAt: new Date(reminderDate).toISOString(), sendEmail: sendReminderEmail });

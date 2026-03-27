@@ -36,8 +36,8 @@ export const useSwipe = ({ onSwipeLeft, onSwipeRight }, threshold = 15, angleThr
     const distanceY = touchStart.y - finalY;
 
     // Ensure swipe is horizontal: Math.abs(X) > Math.abs(Y) * angleThreshold
-    const isHorizontal = Math.abs(distanceX) > Math.abs(distanceY) * angleThreshold;
-    const isOverThreshold = Math.abs(distanceX) > threshold;
+    const isHorizontal = Math.abs(distanceX) > Math.abs(distanceY) * 2.0; // Higher ratio for stricter horizontal swipe
+    const isOverThreshold = Math.abs(distanceX) > 40; // Increased from 15
 
     if (isHorizontal && isOverThreshold) {
       if (distanceX > 0 && onSwipeLeft) {

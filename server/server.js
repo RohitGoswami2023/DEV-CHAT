@@ -209,6 +209,21 @@ connectDB()
           const senderSocket = userSocketMap[sched.senderId._id.toString()];
           if (senderSocket) io.to(senderSocket).emit("newMessage", { ...populated._doc, text: sched.text });
 
+          // 🔥 Offline Notification for Scheduled Message
+          if (!receiverSocket && sched.receiverId.fcmToken) {
+            try {
+              await admin.messaging().send({
+                token: sched.receiverId.fcmToken,
+                notification: {
+                  title: `${sched.senderId.fullName}`,
+                  body: sched.text
+                },
+                data: { chatId: sched.senderId._id.toString(), type: "private" },
+                android: { priority: "high" },
+              });
+            } catch (fcmErr) { console.error("Scheduled FCM Error:", fcmErr.message); }
+          }
+
           sched.sent = true;
           await sched.save();
         }
@@ -287,6 +302,21 @@ connectDB()
               if (receiverOnline) io.to(receiverOnline).emit("newMessage", plainMsg);
               const senderSocket = userSocketMap[rem.creatorId._id.toString()];
               if (senderSocket) io.to(senderSocket).emit("newMessage", plainMsg);
+
+              // 🔥 Offline Notification for Reminder
+              if (!receiverOnline && receiver?.fcmToken) {
+                try {
+                  await admin.messaging().send({
+                    token: receiver.fcmToken,
+                    notification: {
+                      title: `${rem.creatorId.fullName}`,
+                      body: rem.text
+                    },
+                    data: { chatId: rem.creatorId._id.toString(), type: "private" },
+                    android: { priority: "high" },
+                  });
+                } catch (fcmErr) { console.error("Reminder execution FCM Error:", fcmErr.message); }
+              }
             }
           } catch (execErr) { console.error("Reminder execute error:", execErr.message); }
 

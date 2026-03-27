@@ -42,7 +42,7 @@ const CallHistory = () => {
                 <img src={otherUser.profilePic || "/avatar.png"} alt="" className="w-10 h-10 rounded-full object-cover" />
                 <div>
                   <h3 className="text-sm font-medium">{otherUser.fullName}</h3>
-                  <div className="flex items-center gap-1 text-[11px] text-gray-500">
+                  <div className="flex items-center gap-1 text-[11px] text-gray-900">
                     {getStatusIcon(log.status, isCaller)}
                     <span>{format(new Date(log.startTime), "MMM d, h:mm a")}</span>
                   </div>

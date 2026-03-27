@@ -274,7 +274,8 @@ export const sendMessage = async (req, res) => {
               title: `${sender.fullName}`,
               body: isViewOnce ? '📷 View Once Message' : (text ? text : (image ? '📷 Photo' : (video ? '🎥 Video' : (audio ? '🎤 Voice Message' : 'New Message'))))
             },
-            data: { chatId: senderId.toString(), type: "private" }
+            data: { chatId: senderId.toString(), type: "private" },
+            android: { priority: "high" },
           });
         } catch (err) {
           console.error("FCM Send Error:", err.message);
