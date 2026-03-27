@@ -961,31 +961,6 @@ const ChatContainer = () => {
           </div>
         </div>
       )}
-      {txtPreview && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-xl z-[999] p-4 flex flex-col items-center justify-center animate-in zoom-in-95 duration-200">
-           <div className="w-full max-w-2xl h-[80vh] bg-white rounded-[32px] flex flex-col shadow-2xl overflow-hidden border border-white/20">
-              <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
-                 <div>
-                    <h3 className="font-black text-lg text-gray-900 leading-none">{txtPreview.name}</h3>
-                    <p className="text-[10px] uppercase font-bold text-indigo-600 mt-1 tracking-widest">Text Document View</p>
-                 </div>
-                 <button onClick={() => setTxtPreview(null)} className="w-10 h-10 rounded-full bg-black/5 hover:bg-black/10 flex items-center justify-center transition-colors">
-                    <span className="text-2xl font-black leading-none">&times;</span>
-                 </button>
-              </div>
-              <div className="flex-1 p-8 overflow-y-auto bg-[#fafafa]">
-                 <pre className="text-sm font-medium text-gray-700 whitespace-pre-wrap leading-relaxed font-mono">
-                    {txtPreview.content}
-                 </pre>
-              </div>
-              <div className="p-6 border-t border-gray-100 bg-gray-50/50 flex justify-end">
-                 <button onClick={() => setTxtPreview(null)} className="px-8 py-3 bg-black text-white rounded-2xl font-black uppercase text-xs tracking-widest hover:scale-[1.02] active:scale-95 transition-all shadow-xl">
-                    Close Preview
-                 </button>
-              </div>
-           </div>
-        </div>
-      )}
       {/* DOCUMENT PREVIEW MODAL (TXT / PDF) */}
       {docPreview && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-xl z-[999] p-4 flex flex-col items-center justify-center animate-in zoom-in-95 duration-200">
