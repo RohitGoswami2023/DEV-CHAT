@@ -824,7 +824,7 @@ const ChatContainer = () => {
           </p>
         </div>
       ) : (
-        <div className="px-4 lg:px-10 pt-4 pb-8 lg:py-6 border-t bg-white/60 backdrop-blur-xl relative">
+        <div className="px-2 lg:px-10 pt-4 pb-6 lg:py-6 border-t bg-white/60 backdrop-blur-xl relative">
           <div className="max-w-[820px] mx-auto w-full">
             {(previewImage || previewVideo || locationPayload || previewDocument || (audioUrl && !isRecording)) && (
               <div className="absolute bottom-full left-4 right-4 lg:left-0 lg:right-auto mb-2 p-4 bg-white/90 backdrop-blur shadow-lg rounded-t-2xl lg:rounded-tr-2xl lg:rounded-tl-none flex items-center gap-4 w-auto max-w-[calc(100%-2rem)] lg:max-w-none">
@@ -915,16 +915,16 @@ const ChatContainer = () => {
                   </div>
                 </div>
               ) : (
-                <div className="flex-1 flex items-center bg-white border border-gray-300 rounded-3xl shadow-sm focus-within:ring-2 focus-within:ring-green-400 focus-within:border-transparent transition-all mx-6 lg:mx-10">
+                <div className="flex-1 flex items-center bg-white border border-gray-300 rounded-3xl shadow-sm focus-within:ring-2 focus-within:ring-green-400 focus-within:border-transparent transition-all mx-2 pr-1 lg:mx-10 lg:pr-1.5">
                   <input
                     value={input}
                     onChange={handleInputChange}
                     onKeyDown={(e) => e.key === "Enter" && handleSend()}
                     placeholder="Type a message..."
-                    className="flex-1 bg-transparent text-black placeholder:text-gray-500 font-medium px-6 lg:px-12 py-2.5 lg:py-3.5 outline-none rounded-l-3xl"
+                    className="flex-1 bg-transparent text-black placeholder:text-gray-500 font-medium px-4 lg:px-12 py-2.5 lg:py-3.5 outline-none rounded-l-3xl"
                   />
 
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-0.5 lg:gap-1">
                     {/* Attachment (📎 → SVG paperclip) */}
                     <input hidden type="file" id="media" accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.txt" onChange={handleMedia} />
                     <label htmlFor="media" title="Attach file" className="cursor-pointer hover:bg-gray-100 rounded-full p-2 transition-colors flex items-center justify-center opacity-70 hover:opacity-100">
