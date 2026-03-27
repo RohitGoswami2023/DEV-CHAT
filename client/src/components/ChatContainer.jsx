@@ -94,7 +94,7 @@ const ChatContainer = () => {
   } = useContext(ChatContext);
   const { authUser, axios } = useContext(AuthContext);
   const { callUser, callActive, callAccepted, duration, formatDuration, call, outgoingCall } = useContext(CallContext);
-  
+
   const sendSound = useRef(new Audio("https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3"));
   const receiveSound = useRef(new Audio("https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3"));
 
@@ -104,7 +104,7 @@ const ChatContainer = () => {
       if (lastMsg.senderId === authUser._id) {
         // sendSound.current.play().catch(() => {});
       } else {
-        receiveSound.current.play().catch(() => {});
+        receiveSound.current.play().catch(() => { });
       }
     }
   }, [messages.length]);
@@ -381,7 +381,7 @@ const ChatContainer = () => {
       return;
     }
     if (isFetchingLocation) return;
-    
+
     setIsFetchingLocation(true);
     toast.loading("Getting your location...", { id: "loc" });
     navigator.geolocation.getCurrentPosition(
@@ -487,7 +487,7 @@ const ChatContainer = () => {
                 <span className="text-green-600 font-mono text-xs font-bold">{formatDuration(duration)}</span>
               </div>
             )}
-            
+
             {/* Voice call button — private chats only */}
             {!isGroup && !callActive && (
               <button
@@ -507,7 +507,7 @@ const ChatContainer = () => {
       </div>
 
       {/* MESSAGES */}
-      <div 
+      <div
         className="flex-1 overflow-y-auto px-4 lg:px-10 py-6 custom-scrollbar touch-pan-y"
         style={{ touchAction: "pan-y" }}
         {...swipeHandlers}
@@ -586,7 +586,7 @@ const ChatContainer = () => {
                             if (!isMine) {
                               setViewOnceModal(msg);
                               // 🔥 Consume immediately on open for better security
-                              axios.post(`/api/messages/consume-view-once/${msg._id}`).catch(() => {});
+                              axios.post(`/api/messages/consume-view-once/${msg._id}`).catch(() => { });
                             }
                           }}
                           className={`flex items-center gap-3 p-3 mt-2 rounded-xl transition-colors shadow-inner border border-white/20
@@ -630,7 +630,7 @@ const ChatContainer = () => {
                                 <span className={`inline-block text-[10px] font-bold px-1.5 py-0.5 rounded mt-0.5 ${extColor} text-white`}>{ext}</span>
                               </div>
                             </div>
-                                     <div className="flex divide-x divide-gray-100">
+                            <div className="flex divide-x divide-gray-100">
                               {ext === "TXT" || ext === "PDF" ? (
                                 <button
                                   onClick={async () => {
@@ -689,14 +689,14 @@ const ChatContainer = () => {
                         <div className={`flex flex-col gap-2 p-1 ${isMine ? 'text-black' : 'text-white'}`}>
                           <div className="flex items-center gap-3">
                             <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isMine ? 'bg-black/5' : 'bg-white/20'}`}>
-                              {msg.callLog?.status === "missed" ? <PhoneMissed className="w-5 h-5 text-red-400" /> : 
-                               msg.callLog?.status === "rejected" ? <PhoneMissed className="w-5 h-5 text-orange-400" /> :
-                               <Phone className="w-5 h-5 text-current" />}
+                              {msg.callLog?.status === "missed" ? <PhoneMissed className="w-5 h-5 text-red-400" /> :
+                                msg.callLog?.status === "rejected" ? <PhoneMissed className="w-5 h-5 text-orange-400" /> :
+                                  <Phone className="w-5 h-5 text-current" />}
                             </div>
                             <div>
                               <p className="text-sm font-bold uppercase tracking-wide">
-                                {msg.callLog?.status === "missed" ? "Missed Voice Call" : 
-                                 msg.callLog?.status === "rejected" ? "Declined Voice Call" : "Voice Call"}
+                                {msg.callLog?.status === "missed" ? "Missed Voice Call" :
+                                  msg.callLog?.status === "rejected" ? "Declined Voice Call" : "Voice Call"}
                               </p>
                               <div className="flex items-center gap-2 text-[10px] opacity-70 font-bold">
                                 {msg.callLog?.status === "completed" && (
@@ -709,7 +709,7 @@ const ChatContainer = () => {
                             </div>
                           </div>
                           {!isMine && (msg.callLog?.status === "missed" || msg.callLog?.status === "rejected") && (
-                            <button 
+                            <button
                               onClick={() => callUser(activeChat.data)}
                               className="mt-2 w-full py-2 bg-white/10 hover:bg-white/20 rounded-xl text-xs font-bold transition-all border border-white/10"
                             >
@@ -915,7 +915,7 @@ const ChatContainer = () => {
                   </div>
                 </div>
               ) : (
-                <div className="flex-1 flex items-center bg-white border border-gray-300 rounded-3xl shadow-sm focus-within:ring-2 focus-within:ring-green-400 focus-within:border-transparent transition-all mx-2 pr-1 lg:mx-10 lg:pr-1.5">
+                <div className="flex-1 flex items-center bg-white border border-gray-300 rounded-3xl shadow-sm focus-within:ring-2 focus-within:ring-green-400 focus-within:border-transparent transition-all ml-2 mr-6 lg:mx-10 lg:pr-1.5">
                   <input
                     value={input}
                     onChange={handleInputChange}
@@ -981,40 +981,40 @@ const ChatContainer = () => {
       {/* DOCUMENT PREVIEW MODAL (TXT / PDF) */}
       {docPreview && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-xl z-[999] p-4 flex flex-col items-center justify-center animate-in zoom-in-95 duration-200">
-           <div className="w-full max-w-4xl h-[90vh] bg-white rounded-[32px] flex flex-col shadow-2xl overflow-hidden border border-white/20">
-              <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
-                 <div>
-                    <h3 className="font-black text-lg text-gray-900 leading-none truncate max-w-[200px] md:max-w-md">{docPreview.name}</h3>
-                    <p className="text-[10px] uppercase font-bold text-indigo-600 mt-1 tracking-widest">{docPreview.type === 'pdf' ? 'PDF Document View' : 'Text Document View'}</p>
-                 </div>
-                 <button onClick={() => setDocPreview(null)} className="w-10 h-10 rounded-full bg-black/5 hover:bg-black/10 flex items-center justify-center transition-colors">
-                    <span className="text-2xl font-black leading-none">&times;</span>
-                 </button>
+          <div className="w-full max-w-4xl h-[90vh] bg-white rounded-[32px] flex flex-col shadow-2xl overflow-hidden border border-white/20">
+            <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+              <div>
+                <h3 className="font-black text-lg text-gray-900 leading-none truncate max-w-[200px] md:max-w-md">{docPreview.name}</h3>
+                <p className="text-[10px] uppercase font-bold text-indigo-600 mt-1 tracking-widest">{docPreview.type === 'pdf' ? 'PDF Document View' : 'Text Document View'}</p>
               </div>
-              <div className="flex-1 relative overflow-hidden bg-[#fafafa]">
-                 {docPreview.type === 'pdf' ? (
-                    <iframe 
-                        src={`${docPreview.url}#toolbar=0`} 
-                        className="w-full h-full border-none"
-                        title="PDF Viewer"
-                    />
-                 ) : (
-                    <div className="p-8 h-full overflow-y-auto">
-                        <pre className="text-sm font-medium text-gray-700 whitespace-pre-wrap leading-relaxed font-mono">
-                            {docPreview.content}
-                        </pre>
-                    </div>
-                 )}
-              </div>
-              <div className="p-6 border-t border-gray-100 bg-gray-50/50 flex justify-end gap-3">
-                 <a href={docPreview.url || "#"} download={docPreview.name} className="px-6 py-3 bg-gray-100 text-black rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-gray-200 transition-all active:scale-95">
-                    Download
-                 </a>
-                 <button onClick={() => setDocPreview(null)} className="px-8 py-3 bg-black text-white rounded-2xl font-black uppercase text-[10px] tracking-widest hover:scale-[1.02] active:scale-95 transition-all shadow-xl">
-                    Close
-                 </button>
-              </div>
-           </div>
+              <button onClick={() => setDocPreview(null)} className="w-10 h-10 rounded-full bg-black/5 hover:bg-black/10 flex items-center justify-center transition-colors">
+                <span className="text-2xl font-black leading-none">&times;</span>
+              </button>
+            </div>
+            <div className="flex-1 relative overflow-hidden bg-[#fafafa]">
+              {docPreview.type === 'pdf' ? (
+                <iframe
+                  src={`${docPreview.url}#toolbar=0`}
+                  className="w-full h-full border-none"
+                  title="PDF Viewer"
+                />
+              ) : (
+                <div className="p-8 h-full overflow-y-auto">
+                  <pre className="text-sm font-medium text-gray-700 whitespace-pre-wrap leading-relaxed font-mono">
+                    {docPreview.content}
+                  </pre>
+                </div>
+              )}
+            </div>
+            <div className="p-6 border-t border-gray-100 bg-gray-50/50 flex justify-end gap-3">
+              <a href={docPreview.url || "#"} download={docPreview.name} className="px-6 py-3 bg-gray-100 text-black rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-gray-200 transition-all active:scale-95">
+                Download
+              </a>
+              <button onClick={() => setDocPreview(null)} className="px-8 py-3 bg-black text-white rounded-2xl font-black uppercase text-[10px] tracking-widest hover:scale-[1.02] active:scale-95 transition-all shadow-xl">
+                Close
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
