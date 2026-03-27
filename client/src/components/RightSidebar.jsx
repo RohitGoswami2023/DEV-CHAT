@@ -138,7 +138,8 @@ const RightSidebar = () => {
 
   return (
     // UPDATED: w-full for mobile, lg:w-[380px] for desktop
-    <div className="h-full w-full lg:w-[380px] bg-white/10 backdrop-blur-2xl border-l border-black/20 p-5 space-y-6 relative overflow-y-auto scrollbar-hide shadow-2xl">
+    // UPDATED: w-full for mobile, lg:w-[380px] for desktop. Added pb-24 for mobile clearance.
+    <div className="h-full w-full lg:w-[380px] bg-white/10 backdrop-blur-2xl border-l border-black/20 p-5 pb-24 lg:pb-5 space-y-6 relative overflow-y-auto scrollbar-hide shadow-2xl">
       
       {/* MOBILE ONLY: Back Button to return to ChatContainer */}
       <div className="lg:hidden mb-2">
@@ -250,8 +251,8 @@ const RightSidebar = () => {
                   <div key={id} className={`relative flex justify-between items-center bg-white/10 p-3 rounded-2xl border border-white/10 transition-all hover:bg-white/20 hover:scale-[1.01] ${userBlocked ? "opacity-60" : ""}`}>
                     <div className="flex items-center gap-3">
                       <img src={m.profilePic || assets.avatar_icon} className="w-9 h-9 rounded-full object-cover border border-white/20 shadow-sm" alt="m" />
-                      <div className="flex flex-col">
-                        <p className="text-sm font-bold truncate max-w-[140px]">{m.fullName}</p>
+                      <div className="flex flex-col min-w-0">
+                        <p className="text-sm font-bold truncate max-w-[120px] sm:max-w-[180px]">{m.fullName}</p>
                         {isGroupAdmin && <span className="text-[9px] font-black text-green-600 uppercase tracking-tighter">Administrator</span>}
                       </div>
                     </div>

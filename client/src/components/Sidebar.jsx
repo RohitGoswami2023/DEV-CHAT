@@ -230,32 +230,32 @@ const Sidebar = () => {
       )}
 
       {/* TABS */}
-      <div className="flex p-2 gap-2 bg-white/5 mx-2 mt-2 rounded-xl overflow-x-auto hide-scrollbar whitespace-nowrap scroll-smooth">
+      <div className="flex p-2 gap-2 bg-white/5 mx-2 mt-2 rounded-xl overflow-x-auto hide-scrollbar whitespace-nowrap scroll-smooth snap-x snap-mandatory">
         <button
           onClick={() => { setTab("groups"); setSearch(""); }}
-          className={`flex-1 py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-all ${tab === "groups" ? "bg-purple-600 text-white shadow-md scale-105" : "hover:bg-white/10 hover:scale-105 active:scale-95"
+          className={`flex-1 min-w-[70px] snap-center py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-all ${tab === "groups" ? "bg-purple-600 text-white shadow-md scale-105" : "hover:bg-white/10 hover:scale-105 active:scale-95"
             }`}
         >
           Groups
-          {totalGroupUnseen > 0 && <span className="bg-red-500 text-white text-[9px] w-4 h-4 rounded-full flex items-center justify-center">{totalGroupUnseen}</span>}
+          {totalGroupUnseen > 0 && <span className="bg-red-500 text-white text-[9px] w-4 h-4 rounded-full flex items-center justify-center leading-none">{totalGroupUnseen}</span>}
         </button>
 
         <button
           onClick={() => { setTab("chats"); setSearch(""); }}
-          className={`flex-1 py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-all ${tab === "chats" ? "bg-purple-600 text-white shadow-md scale-105" : "hover:bg-white/10 hover:scale-105 active:scale-95"
+          className={`flex-1 min-w-[70px] snap-center py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-all ${tab === "chats" ? "bg-purple-600 text-white shadow-md scale-105" : "hover:bg-white/10 hover:scale-105 active:scale-95"
             }`}
         >
           Chats
-          {totalChatUnseen > 0 && <span className="bg-red-500 text-white text-[9px] w-4 h-4 rounded-full flex items-center justify-center">{totalChatUnseen}</span>}
+          {totalChatUnseen > 0 && <span className="bg-red-500 text-white text-[9px] w-4 h-4 rounded-full flex items-center justify-center leading-none">{totalChatUnseen}</span>}
         </button>
 
         <button
           onClick={() => { setTab("requests"); setSearch(""); }}
-          className={`flex-1 py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-all ${tab === "requests" ? "bg-purple-600 text-white shadow-md scale-105" : "hover:bg-white/10 hover:scale-105 active:scale-95"
+          className={`flex-1 min-w-[70px] snap-center py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-all ${tab === "requests" ? "bg-purple-600 text-white shadow-md scale-105" : "hover:bg-white/10 hover:scale-105 active:scale-95"
             }`}
         >
           Reqs
-          {totalRequests > 0 && <span className="bg-red-500 text-white text-[9px] w-4 h-4 rounded-full flex items-center justify-center">{totalRequests}</span>}
+          {totalRequests > 0 && <span className="bg-red-500 text-white text-[9px] w-4 h-4 rounded-full flex items-center justify-center leading-none">{totalRequests}</span>}
         </button>
         <button
           onClick={() => { setTab("archived"); setSearch(""); }}
@@ -268,7 +268,7 @@ const Sidebar = () => {
 
         <button
           onClick={() => { setTab("calls"); setSearch(""); fetchCallLogs(axios); }}
-          className={`flex-1 py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-all ${tab === "calls" ? "bg-purple-600 text-white shadow-md scale-105" : "hover:bg-white/10 hover:scale-105 active:scale-95"
+          className={`flex-1 min-w-[70px] snap-center py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-all ${tab === "calls" ? "bg-purple-600 text-white shadow-md scale-105" : "hover:bg-white/10 hover:scale-105 active:scale-95"
             }`}
         >
           Calls
