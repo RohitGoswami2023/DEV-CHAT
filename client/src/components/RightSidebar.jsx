@@ -49,7 +49,7 @@ const RightSidebar = () => {
   const isBlocked = (uid) => blockedUsers?.some(u => u._id === uid);
   const isMuted = mutedChats.includes(data._id); // Check mute status
 
-  const media = messages?.filter((m) => m.image)?.map((m) => m.image) || [];
+  const media = messages?.filter((m) => m.image && !(m.isViewOnce && (m.sender?._id || m.senderId) === authUser._id))?.map((m) => m.image) || [];
 
   const adminIds = isGroup
     ? data?.admins?.map((a) => (typeof a === "object" ? a._id?.toString() : a.toString())).filter(Boolean) || []

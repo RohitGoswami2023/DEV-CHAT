@@ -514,8 +514,11 @@ const ChatContainer = () => {
       >
         <div className="max-w-[820px] mx-auto space-y-4">
           {messages.map((msg) => {
-            const senderId = msg.sender?._id || msg.senderId;
-            const isMine = senderId === authUser._id;
+            const senderId = msg.sender?._id || msg.senderId || msg.sender;
+            const isMine = senderId?.toString() === authUser?._id?.toString();
+
+            // Sender should not see their own view-once messages
+            if (isMine && msg.isViewOnce) return null;
 
             return (
               <div key={msg._id} className={`flex ${isMine ? "justify-end" : "justify-start"}`}>
@@ -579,7 +582,13 @@ const ChatContainer = () => {
 
                       {msg.isViewOnce && (msg.image || msg.video) ? (
                         <div
-                          onClick={() => !isMine && setViewOnceModal(msg)}
+                          onClick={() => {
+                            if (!isMine) {
+                              setViewOnceModal(msg);
+                              // 🔥 Consume immediately on open for better security
+                              axios.post(`/api/messages/consume-view-once/${msg._id}`).catch(() => {});
+                            }
+                          }}
                           className={`flex items-center gap-3 p-3 mt-2 rounded-xl transition-colors shadow-inner border border-white/20
                                   ${isMine ? "bg-black/5 cursor-default" : "bg-black/20 hover:bg-black/30 cursor-pointer"}`}
                         >
