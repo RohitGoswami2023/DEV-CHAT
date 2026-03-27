@@ -437,6 +437,8 @@ const RightSidebar = () => {
                 onClick={async () => {
                   try {
                     await axios.put("/api/groups/update", { groupId: data._id, historyAccess: opt });
+                    // ✅ Update context state immediately for UI feedback
+                    setActiveChat({ ...activeChat, data: { ...data, historyAccess: opt } });
                     toast.success(opt === "all" ? "Full history visible" : "New members see from join only");
                   } catch (e) { toast.error(e.response?.data?.message || "Failed"); }
                 }}
