@@ -579,14 +579,14 @@ const ChatContainer = () => {
 
                       {msg.isViewOnce && (msg.image || msg.video) ? (
                         <div
-                          onClick={() => setViewOnceModal(msg)}
-                          className={`flex items-center gap-3 p-3 mt-2 rounded-xl cursor-pointer transition-colors shadow-inner border border-white/20
-                                  ${isMine ? "bg-black/10 hover:bg-black/20" : "bg-black/20 hover:bg-black/30"}`}
+                          onClick={() => !isMine && setViewOnceModal(msg)}
+                          className={`flex items-center gap-3 p-3 mt-2 rounded-xl transition-colors shadow-inner border border-white/20
+                                  ${isMine ? "bg-black/5 cursor-default" : "bg-black/20 hover:bg-black/30 cursor-pointer"}`}
                         >
                           <span className="text-2xl drop-shadow-md">{msg.image ? "📷" : "🎥"}</span>
                           <div className="flex flex-col">
                             <span className="font-bold tracking-wide">{msg.image ? "Photo" : "Video"}</span>
-                            <span className="text-[10px] opacity-70 flex items-center gap-1 font-semibold uppercase tracking-wider"><span className="w-3 h-3 text-[8px] border border-current rounded-full flex items-center justify-center">1</span> View Once</span>
+                            <span className="text-[10px] opacity-70 flex items-center gap-1 font-semibold uppercase tracking-wider"><span className="w-3 h-3 text-[8px] border border-current rounded-full flex items-center justify-center">1</span> {isMine ? "View Once Sent" : "View Once"}</span>
                           </div>
                         </div>
                       ) : (
@@ -818,7 +818,7 @@ const ChatContainer = () => {
         <div className="px-4 lg:px-10 pt-4 pb-8 lg:py-6 border-t bg-white/60 backdrop-blur-xl relative">
           <div className="max-w-[820px] mx-auto w-full">
             {(previewImage || previewVideo || locationPayload || previewDocument || (audioUrl && !isRecording)) && (
-              <div className="absolute bottom-full left-0 mb-2 p-4 bg-white/90 backdrop-blur shadow-lg rounded-t-2xl flex items-center gap-4 w-full lg:w-auto">
+              <div className="absolute bottom-full left-4 right-4 lg:left-0 lg:right-auto mb-2 p-4 bg-white/90 backdrop-blur shadow-lg rounded-t-2xl lg:rounded-tr-2xl lg:rounded-tl-none flex items-center gap-4 w-auto max-w-[calc(100%-2rem)] lg:max-w-none">
                 {previewImage && (
                   <div className="relative group">
                     <img src={previewImage} alt="Preview" className="w-20 h-20 object-cover rounded-lg border-2 border-green-600" />
@@ -906,13 +906,13 @@ const ChatContainer = () => {
                   </div>
                 </div>
               ) : (
-                <div className="flex-1 flex items-center bg-white border border-gray-300 rounded-3xl pr-1.5 shadow-sm focus-within:ring-2 focus-within:ring-green-400 focus-within:border-transparent transition-all">
+                <div className="flex-1 flex items-center bg-white border border-gray-300 rounded-3xl shadow-sm focus-within:ring-2 focus-within:ring-green-400 focus-within:border-transparent transition-all">
                   <input
                     value={input}
                     onChange={handleInputChange}
                     onKeyDown={(e) => e.key === "Enter" && handleSend()}
                     placeholder="Type a message..."
-                    className="flex-1 bg-transparent text-black placeholder:text-gray-500 font-medium px-4 lg:px-5 py-2.5 lg:py-3.5 outline-none rounded-l-3xl"
+                    className="flex-1 bg-transparent text-black placeholder:text-gray-500 font-medium px-5 py-2.5 lg:py-3.5 outline-none rounded-l-3xl"
                   />
 
                   <div className="flex items-center gap-1">
@@ -947,14 +947,14 @@ const ChatContainer = () => {
 
                     {/* Mic / Send Button */}
                     {!input.trim() && !previewImage && !previewVideo && !audioUrl && !locationPayload && !previewDocument ? (
-                      <button onClick={startRecording} className="bg-green-500 hover:bg-green-600 text-white rounded-full w-8 h-8 lg:w-9 lg:h-9 flex items-center justify-center shadow-md hover:scale-105 active:scale-95 transition-all outline-none mr-1">
+                      <button onClick={startRecording} className="flex-shrink-0 bg-green-500 hover:bg-green-600 text-white rounded-full w-8 h-8 lg:w-9 lg:h-9 flex items-center justify-center shadow-md hover:scale-105 active:scale-95 transition-all outline-none mx-1.5">
                         {/* SVG Mic */}
                         <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 lg:w-4 lg:h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
                         </svg>
                       </button>
                     ) : (
-                      <button onClick={handleSend} disabled={isSending} className={`text-white w-8 h-8 lg:w-9 lg:h-9 rounded-full flex items-center justify-center shadow-md transition-all outline-none ${isSending ? 'bg-gray-400 cursor-not-allowed opacity-70' : 'bg-blue-600 hover:bg-blue-700 hover:scale-105 active:scale-95'}`}>
+                      <button onClick={handleSend} disabled={isSending} className={`flex-shrink-0 text-white w-8 h-8 lg:w-9 lg:h-9 rounded-full flex items-center justify-center shadow-md transition-all outline-none mx-1.5 ${isSending ? 'bg-gray-400 cursor-not-allowed opacity-70' : 'bg-blue-600 hover:bg-blue-700 hover:scale-105 active:scale-95'}`}>
                         {isSending ? (
                           <div className="w-3 h-3 lg:w-4 lg:h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
                         ) : (
