@@ -466,7 +466,7 @@ const ChatContainer = () => {
       {...swipeHandlers}
     >
       {/* HEADER */}
-      <div className="px-4 lg:px-8 py-3 lg:py-4 border-b bg-white/30 backdrop-blur-lg sticky top-0 z-10">
+      <div className="px-4 lg:px-10 py-3 lg:py-4 border-b bg-white/30 backdrop-blur-lg sticky top-0 z-10">
         <div className="max-w-[820px] mx-auto flex items-center justify-between gap-2 overflow-hidden">
           <div className="flex items-center gap-3 overflow-hidden">
             <button onClick={() => setActiveChat(null)} className="lg:hidden text-2xl mr-1 hover:bg-white/20 rounded-full w-8 h-8 flex items-center justify-center">←</button>
@@ -508,7 +508,7 @@ const ChatContainer = () => {
 
       {/* MESSAGES */}
       <div 
-        className="flex-1 overflow-y-auto px-4 lg:px-6 py-6 custom-scrollbar touch-pan-y"
+        className="flex-1 overflow-y-auto px-4 lg:px-10 py-6 custom-scrollbar touch-pan-y"
         style={{ touchAction: "pan-y" }}
         {...swipeHandlers}
       >
@@ -815,7 +815,7 @@ const ChatContainer = () => {
           </p>
         </div>
       ) : (
-        <div className="px-6 lg:px-10 pt-4 pb-8 lg:py-6 border-t bg-white/60 backdrop-blur-xl relative">
+        <div className="px-4 lg:px-10 pt-4 pb-8 lg:py-6 border-t bg-white/60 backdrop-blur-xl relative">
           <div className="max-w-[820px] mx-auto w-full">
             {(previewImage || previewVideo || locationPayload || previewDocument || (audioUrl && !isRecording)) && (
               <div className="absolute bottom-full left-0 mb-2 p-4 bg-white/90 backdrop-blur shadow-lg rounded-t-2xl flex items-center gap-4 w-full lg:w-auto">
@@ -896,7 +896,7 @@ const ChatContainer = () => {
                   </div>
                 </div>
               ) : (
-                <div className="flex-1 flex items-center bg-white border border-gray-300 rounded-3xl pr-2 shadow-sm focus-within:ring-2 focus-within:ring-green-400 focus-within:border-transparent transition-all">
+                <div className="flex-1 flex items-center bg-white border border-gray-300 rounded-3xl pr-1.5 shadow-sm focus-within:ring-2 focus-within:ring-green-400 focus-within:border-transparent transition-all">
                   <input
                     value={input}
                     onChange={handleInputChange}
@@ -950,7 +950,7 @@ const ChatContainer = () => {
                         </svg>
                       </button>
                     ) : (
-                      <button onClick={handleSend} disabled={isSending} className={`text-white w-9 h-9 rounded-full flex items-center justify-center shadow-md transition-all outline-none mr-1 ${isSending ? 'bg-gray-400 cursor-not-allowed opacity-70' : 'bg-blue-600 hover:bg-blue-700 hover:scale-105 active:scale-95'}`}>
+                      <button onClick={handleSend} disabled={isSending} className={`text-white w-9 h-9 rounded-full flex items-center justify-center shadow-md transition-all outline-none ${isSending ? 'bg-gray-400 cursor-not-allowed opacity-70' : 'bg-blue-600 hover:bg-blue-700 hover:scale-105 active:scale-95'}`}>
                         {isSending ? (
                           <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
                         ) : (
