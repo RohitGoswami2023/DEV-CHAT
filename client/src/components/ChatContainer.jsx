@@ -915,13 +915,13 @@ const ChatContainer = () => {
                   </div>
                 </div>
               ) : (
-                <div className="flex-1 flex items-center bg-white border border-gray-300 rounded-3xl shadow-sm focus-within:ring-2 focus-within:ring-green-400 focus-within:border-transparent transition-all">
+                <div className="flex-1 flex items-center bg-white border border-gray-300 rounded-3xl shadow-sm focus-within:ring-2 focus-within:ring-green-400 focus-within:border-transparent transition-all ml-2 mr-8 lg:mx-10">
                   <input
                     value={input}
                     onChange={handleInputChange}
                     onKeyDown={(e) => e.key === "Enter" && handleSend()}
                     placeholder="Type a message..."
-                    className="flex-1 bg-transparent text-black placeholder:text-gray-500 font-medium px-5 py-2.5 lg:py-3.5 outline-none rounded-l-3xl"
+                    className="flex-1 bg-transparent text-black placeholder:text-gray-500 font-medium px-6 lg:px-12 py-2.5 lg:py-3.5 outline-none rounded-l-3xl"
                   />
 
                   <div className="flex items-center gap-1">
