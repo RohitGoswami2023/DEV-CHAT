@@ -12,15 +12,16 @@ import toast from "react-hot-toast";
 // ====================================================================
 const PROJECT_DETAILS = {
   name: "Dev Chat",
-  version: "Beta Version 1.0",
+  version: "Stable Version 1.1",
   tagline: "Connect, Share, and Collaborate in Real-Time.",
-  description: "Dev Chat is a secure, web-based messaging platform designed for students and professionals. Every user receives a Unique Public ID for easy discovery. Create dynamic groups, enjoy instant message delivery via Socket.io, and rest assured with our end-to-end encryption.",
+  description: "Dev Chat is a secure, web-based messaging platform designed for students and professionals. Version 1.1 introduces high-quality voice calls, advanced group management with history control, and robust document support including PDF and TXT previews.",
   features: [
     "⚡ Real-Time Socket.io",
-    "🔒 End-to-End Encryption",
-    "🆔 Unique Public User IDs",
-    "👥 Group Creation & Mgmt",
-    "🛡️ Modern Security Checks"
+    "📞 High-Quality Voice Calls",
+    "🎥 Video & Media Sending",
+    "📄 TXT & PDF Doc Viewer",
+    "📍 Live Location Sharing",
+    "👥 Advanced Group Mgmt"
   ]
 };
 

@@ -89,7 +89,7 @@ const SecurityCheck = () => {
       </div>
 
       {/* SESSION & AUTH INFO */}
-      <div className="bg-gradient-to-br from-indigo-600 to-purple-700 rounded-[2rem] p-6 pb-12 text-white mb-6 shadow-xl relative overflow-hidden">
+      <div className="bg-gradient-to-br from-indigo-600 to-purple-700 rounded-[2rem] p-6 pb-16 text-white mb-6 shadow-xl relative overflow-hidden">
         <div className="absolute top-0 right-0 p-4 opacity-10">
           <Lock className="w-20 h-20" />
         </div>
@@ -116,9 +116,11 @@ const SecurityCheck = () => {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-[10px] uppercase font-bold opacity-60">Last Login Time</p>
-              <p className="text-sm font-bold break-words leading-tight">{authUser.lastLoginTime ? format(new Date(authUser.lastLoginTime), "MMM d, yyyy • h:mm a") : "Active Session"}</p>
+              <p className="text-sm font-bold truncate leading-tight">{authUser.lastLoginTime ? format(new Date(authUser.lastLoginTime), "MMM d, yyyy • h:mm a") : "Active Session"}</p>
             </div>
           </div>
+          {/* Spacer to prevent clipping by large rounded corners */}
+          <div className="h-2"></div>
         </div>
       </div>
 
