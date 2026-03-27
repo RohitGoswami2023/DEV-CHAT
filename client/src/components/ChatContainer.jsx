@@ -135,7 +135,8 @@ const ChatContainer = () => {
 
   const [replyingTo, setReplyingTo] = useState(null);
   const [mentionList, setMentionList] = useState([]);
-  const [showMentions, setShowMentions] = useState(false);
+  const [showSchedule, setShowSchedule] = useState(false);
+  const [txtPreview, setTxtPreview] = useState(null); // { name: string, content: string }
   const [isFetchingLocation, setIsFetchingLocation] = useState(false);
   const [openMsgMenu, setOpenMsgMenu] = useState(null);
 
@@ -619,18 +620,39 @@ const ChatContainer = () => {
                             </div>
                             {/* Action row */}
                             <div className="flex divide-x divide-gray-100">
-                              <a
-                                href={msg.document}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold text-indigo-600 hover:bg-indigo-50 transition-colors"
-                              >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                </svg>
-                                View
-                              </a>
+                              {ext === "TXT" ? (
+                                <button
+                                  onClick={async () => {
+                                    try {
+                                      const res = await fetch(msg.document);
+                                      const text = await res.text();
+                                      setTxtPreview({ name: fname, content: text });
+                                    } catch (e) {
+                                      toast.error("Failed to load text file");
+                                    }
+                                  }}
+                                  className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold text-indigo-600 hover:bg-indigo-50 transition-colors"
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                  </svg>
+                                  View
+                                </button>
+                              ) : (
+                                <a
+                                  href={msg.document}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold text-indigo-600 hover:bg-indigo-50 transition-colors"
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                  </svg>
+                                  View
+                                </a>
+                              )}
                               <a
                                 href={msg.document}
                                 download={fname}
@@ -932,6 +954,31 @@ const ChatContainer = () => {
               </div>
             )}
           </div>
+        </div>
+      )}
+      {txtPreview && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-xl z-[999] p-4 flex flex-col items-center justify-center animate-in zoom-in-95 duration-200">
+           <div className="w-full max-w-2xl h-[80vh] bg-white rounded-[32px] flex flex-col shadow-2xl overflow-hidden border border-white/20">
+              <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+                 <div>
+                    <h3 className="font-black text-lg text-gray-900 leading-none">{txtPreview.name}</h3>
+                    <p className="text-[10px] uppercase font-bold text-indigo-600 mt-1 tracking-widest">Text Document View</p>
+                 </div>
+                 <button onClick={() => setTxtPreview(null)} className="w-10 h-10 rounded-full bg-black/5 hover:bg-black/10 flex items-center justify-center transition-colors">
+                    <span className="text-2xl font-black leading-none">&times;</span>
+                 </button>
+              </div>
+              <div className="flex-1 p-8 overflow-y-auto bg-[#fafafa]">
+                 <pre className="text-sm font-medium text-gray-700 whitespace-pre-wrap leading-relaxed font-mono">
+                    {txtPreview.content}
+                 </pre>
+              </div>
+              <div className="p-6 border-t border-gray-100 bg-gray-50/50 flex justify-end">
+                 <button onClick={() => setTxtPreview(null)} className="px-8 py-3 bg-black text-white rounded-2xl font-black uppercase text-xs tracking-widest hover:scale-[1.02] active:scale-95 transition-all shadow-xl">
+                    Close Preview
+                 </button>
+              </div>
+           </div>
         </div>
       )}
     </div>

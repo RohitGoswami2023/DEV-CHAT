@@ -16,9 +16,9 @@ messaging.onBackgroundMessage((payload) => {
   console.log('[firebase-messaging-sw.js] Received background message ', payload);
   
   const type = payload.data?.type;
-  let notificationTitle = payload.notification?.title || "New Notification";
+  let notificationTitle = payload.data?.title || payload.notification?.title || "New Notification";
   let notificationOptions = {
-    body: payload.notification?.body || "You have a new message",
+    body: payload.data?.body || payload.notification?.body || "You have a new message",
     icon: '/favicon.svg',
     vibrate: [200, 100, 200],
     tag: type === 'call' ? 'incoming-call' : 'new-msg',

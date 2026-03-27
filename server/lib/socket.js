@@ -48,22 +48,18 @@ export const initSocket = (server) => {
         if (receiver?.fcmToken) {
            admin.messaging().send({
             token: receiver.fcmToken,
-            notification: {
-              title: "📞 Incoming Call",
-              body: `${callerName} is calling you...`,
-            },
+            // ✅ Data-only payload to ensure Service Worker's onBackgroundMessage is triggered on Android
             data: { 
                 type: "call", 
                 from, 
                 callerName: callerName || "Someone",
-                signal: JSON.stringify(signalData)
+                signal: JSON.stringify(signalData),
+                title: "📞 Incoming Call", // SW will use these
+                body: `${callerName} is calling you...`
             },
             android: { 
                 priority: "high",
-                notification: {
-                    sound: "default",
-                    clickAction: "FLUTTER_NOTIFICATION_CLICK" // Common for many platforms to trigger click handlers
-                }
+                ttl: 3600 * 1000 // 1 hour
             },
             apns: { payload: { aps: { contentAvailable: true, sound: "default" } } },
           }).catch(e => console.error("Call FCM Error:", e.message));
