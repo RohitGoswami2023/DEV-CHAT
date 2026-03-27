@@ -114,9 +114,9 @@ const SecurityCheck = () => {
             <div className="p-2 bg-white/20 rounded-xl">
               <Clock className="w-4 h-4" />
             </div>
-            <div>
+            <div className="flex-1 min-w-0">
               <p className="text-[10px] uppercase font-bold opacity-60">Last Login Time</p>
-              <p className="text-sm font-bold">{authUser.lastLoginTime ? format(new Date(authUser.lastLoginTime), "MMM d, yyyy • h:mm a") : "Active Session"}</p>
+              <p className="text-sm font-bold break-words leading-tight">{authUser.lastLoginTime ? format(new Date(authUser.lastLoginTime), "MMM d, yyyy • h:mm a") : "Active Session"}</p>
             </div>
           </div>
         </div>

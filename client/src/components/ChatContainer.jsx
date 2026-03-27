@@ -135,8 +135,9 @@ const ChatContainer = () => {
 
   const [replyingTo, setReplyingTo] = useState(null);
   const [mentionList, setMentionList] = useState([]);
+  const [showMentions, setShowMentions] = useState(false);
   const [showSchedule, setShowSchedule] = useState(false);
-  const [txtPreview, setTxtPreview] = useState(null); // { name: string, content: string }
+  const [docPreview, setDocPreview] = useState(null); // { name: string, content?: string, type: 'txt' | 'pdf', url: string }
   const [isFetchingLocation, setIsFetchingLocation] = useState(false);
   const [openMsgMenu, setOpenMsgMenu] = useState(null);
 
@@ -618,17 +619,21 @@ const ChatContainer = () => {
                                 <span className={`inline-block text-[10px] font-bold px-1.5 py-0.5 rounded mt-0.5 ${extColor} text-white`}>{ext}</span>
                               </div>
                             </div>
-                            {/* Action row */}
-                            <div className="flex divide-x divide-gray-100">
-                              {ext === "TXT" ? (
+                                     <div className="flex divide-x divide-gray-100">
+                              {ext === "TXT" || ext === "PDF" ? (
                                 <button
                                   onClick={async () => {
-                                    try {
-                                      const res = await fetch(msg.document);
-                                      const text = await res.text();
-                                      setTxtPreview({ name: fname, content: text });
-                                    } catch (e) {
-                                      toast.error("Failed to load text file");
+                                    if (ext === "TXT") {
+                                      try {
+                                        const res = await fetch(msg.document);
+                                        const text = await res.text();
+                                        setDocPreview({ name: fname, content: text, type: 'txt', url: msg.document });
+                                      } catch (e) {
+                                        toast.error("Failed to load text file");
+                                      }
+                                    } else {
+                                      // PDF
+                                      setDocPreview({ name: fname, url: msg.document, type: 'pdf' });
                                     }
                                   }}
                                   className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold text-indigo-600 hover:bg-indigo-50 transition-colors"
@@ -976,6 +981,45 @@ const ChatContainer = () => {
               <div className="p-6 border-t border-gray-100 bg-gray-50/50 flex justify-end">
                  <button onClick={() => setTxtPreview(null)} className="px-8 py-3 bg-black text-white rounded-2xl font-black uppercase text-xs tracking-widest hover:scale-[1.02] active:scale-95 transition-all shadow-xl">
                     Close Preview
+                 </button>
+              </div>
+           </div>
+        </div>
+      )}
+      {/* DOCUMENT PREVIEW MODAL (TXT / PDF) */}
+      {docPreview && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-xl z-[999] p-4 flex flex-col items-center justify-center animate-in zoom-in-95 duration-200">
+           <div className="w-full max-w-4xl h-[90vh] bg-white rounded-[32px] flex flex-col shadow-2xl overflow-hidden border border-white/20">
+              <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+                 <div>
+                    <h3 className="font-black text-lg text-gray-900 leading-none truncate max-w-[200px] md:max-w-md">{docPreview.name}</h3>
+                    <p className="text-[10px] uppercase font-bold text-indigo-600 mt-1 tracking-widest">{docPreview.type === 'pdf' ? 'PDF Document View' : 'Text Document View'}</p>
+                 </div>
+                 <button onClick={() => setDocPreview(null)} className="w-10 h-10 rounded-full bg-black/5 hover:bg-black/10 flex items-center justify-center transition-colors">
+                    <span className="text-2xl font-black leading-none">&times;</span>
+                 </button>
+              </div>
+              <div className="flex-1 relative overflow-hidden bg-[#fafafa]">
+                 {docPreview.type === 'pdf' ? (
+                    <iframe 
+                        src={`${docPreview.url}#toolbar=0`} 
+                        className="w-full h-full border-none"
+                        title="PDF Viewer"
+                    />
+                 ) : (
+                    <div className="p-8 h-full overflow-y-auto">
+                        <pre className="text-sm font-medium text-gray-700 whitespace-pre-wrap leading-relaxed font-mono">
+                            {docPreview.content}
+                        </pre>
+                    </div>
+                 )}
+              </div>
+              <div className="p-6 border-t border-gray-100 bg-gray-50/50 flex justify-end gap-3">
+                 <a href={docPreview.url || "#"} download={docPreview.name} className="px-6 py-3 bg-gray-100 text-black rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-gray-200 transition-all active:scale-95">
+                    Download
+                 </a>
+                 <button onClick={() => setDocPreview(null)} className="px-8 py-3 bg-black text-white rounded-2xl font-black uppercase text-[10px] tracking-widest hover:scale-[1.02] active:scale-95 transition-all shadow-xl">
+                    Close
                  </button>
               </div>
            </div>
