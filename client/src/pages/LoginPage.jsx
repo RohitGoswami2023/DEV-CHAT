@@ -31,7 +31,7 @@ const PROJECT_DETAILS = {
     ]
 };
 
-const DEVELOPER_DETAILS = {
+/*const DEVELOPER_DETAILS = {
     name: "Rohit Raj",
     role: "B.Tech CSE Student",
     university: "Graphic Era Hill University",
@@ -42,7 +42,7 @@ const DEVELOPER_DETAILS = {
     email: "mailto:goswamirohit2830@gmail.com"
 };
 // ====================================================================
-
+*/
 
 const LoginPage = () => {
     const [currState, setCurrState] = useState("Sign Up");
