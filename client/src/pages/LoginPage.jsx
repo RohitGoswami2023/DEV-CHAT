@@ -31,7 +31,7 @@ const PROJECT_DETAILS = {
     ]
 };
 
-/*const DEVELOPER_DETAILS = {
+const DEVELOPER_DETAILS = {
     name: "Rohit Raj",
     role: "B.Tech CSE Student",
     university: "Graphic Era Hill University",
@@ -42,7 +42,7 @@ const PROJECT_DETAILS = {
     email: "mailto:goswamirohit2830@gmail.com"
 };
 // ====================================================================
-*/
+
 
 const LoginPage = () => {
     const [currState, setCurrState] = useState("Sign Up");
@@ -290,3 +290,62 @@ const LoginPage = () => {
                     </div>
                 </div>
 
+                {/* === ABOUT DEVELOPER CARD === */}
+                <div className="bg-white/60 backdrop-blur-xl border border-white/60 rounded-[32px] p-8 text-gray-900 shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all flex flex-col justify-between">
+                    <div>
+                        <div className="flex items-center gap-4 mb-4">
+                            <div className="w-14 h-14 rounded-full bg-gradient-to-tr from-gray-800 to-black flex items-center justify-center text-xl font-bold shadow-lg text-white">
+                                {DEVELOPER_DETAILS.name.charAt(0)}
+                            </div>
+                            <div>
+                                <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight">
+                                    {DEVELOPER_DETAILS.name}
+                                </h3>
+                                <p className="text-xs font-bold text-purple-700 uppercase tracking-widest">
+                                    {DEVELOPER_DETAILS.role}
+                                </p>
+                                <p className="text-[10px] text-gray-500 font-bold uppercase mt-0.5">
+                                    {DEVELOPER_DETAILS.university}
+                                </p>
+                            </div>
+                        </div>
+
+                        <p className="text-sm text-gray-600 leading-relaxed mb-4 border-l-4 border-purple-500 pl-4 font-medium">
+                            {DEVELOPER_DETAILS.bio}
+                        </p>
+
+                        {/* Contact Info Row */}
+                        <div className="flex items-center gap-2 mb-6 opacity-80">
+                            <span className="text-xs font-black uppercase bg-gray-200 text-gray-700 px-2 py-1 rounded">Contact</span>
+                            <span className="text-sm font-mono font-bold">{DEVELOPER_DETAILS.contact}</span>
+                        </div>
+                    </div>
+
+                    <div className="flex flex-wrap gap-3">
+                        {DEVELOPER_DETAILS.linkedin && (
+                            <a href={DEVELOPER_DETAILS.linkedin} target="_blank" rel="noopener noreferrer" className="flex-1 text-center text-xs font-bold text-gray-800 bg-white border border-gray-200 hover:bg-gray-50 px-4 py-3 rounded-xl transition-all shadow-sm">
+                                LinkedIn ↗
+                            </a>
+                        )}
+
+                        {DEVELOPER_DETAILS.instagram && (
+                            <a href={DEVELOPER_DETAILS.instagram} target="_blank" rel="noopener noreferrer" className="flex-1 text-center text-xs font-bold text-gray-800 bg-white border border-gray-200 hover:bg-gray-50 px-4 py-3 rounded-xl transition-all shadow-sm">
+                                Instagram ↗
+                            </a>
+                        )}
+
+                        {DEVELOPER_DETAILS.email && (
+                            <a href={DEVELOPER_DETAILS.email} className="flex-1 text-center text-xs font-bold text-white bg-gray-900 hover:bg-black px-4 py-3 rounded-xl transition-all shadow-lg">
+                                Email Me
+                            </a>
+                        )}
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+    );
+};
+
+export default LoginPage;
