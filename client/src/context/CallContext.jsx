@@ -226,14 +226,18 @@ export const CallProvider = ({ children }) => {
     };
 
     const onBusy = () => {
-      toast.error("User is on another call");
-      setCallActive(false);
-      setOutgoingCall(null);
+      toast.error("📵 User is busy on another call");
+      // Clean up peer & mic
+      if (peerRef.current) { peerRef.current.destroy(); peerRef.current = null; }
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(t => t.stop());
         streamRef.current = null;
         setStream(null);
       }
+      if (callTimeoutRef.current) { clearTimeout(callTimeoutRef.current); callTimeoutRef.current = null; }
+      setCallActive(false);
+      setOutgoingCall(null);
+      setCallAccepted(false);
     };
 
     socket.on("callIncoming", onIncoming);

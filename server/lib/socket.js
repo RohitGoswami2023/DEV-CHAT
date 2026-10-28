@@ -10,6 +10,9 @@ export let io;
 export const userSocketMap = {}; // userId -> socketId
 const callStartTimeMap = {}; // socketId -> { startTime, from, to }
 
+// ✅ Tracks BOTH participants by userId to prevent race conditions
+const activeCallUsers = new Set(); // Set<userId>
+
 export const initSocket = (server) => {
   io = new Server(server, {
     cors: {
@@ -44,15 +47,33 @@ export const initSocket = (server) => {
     // VOICE CALL SIGNALING
     socket.on("callUser", async ({ to, signalData, from, callerName, callerPic }) => {
       const targetSocket = userSocketMap[to];
-      
-      // ✅ 1. Check if recipient is already in another call
-      if (targetSocket && callStartTimeMap[targetSocket]) {
-        return socket.emit("callBusy", { name: callerName }); // In a real app, use recipient name if known
+
+      // ✅ 1. Check if RECIPIENT is already in any call (by userId, covers both caller & receiver roles)
+      if (activeCallUsers.has(to)) {
+        socket.emit("callBusy", { name: callerName });
+        // 🔔 Push notification: tell the receiver someone tried to call
+        try {
+          const busyReceiver = await User.findById(to).select("fcmToken");
+          if (busyReceiver?.fcmToken) {
+            admin.messaging().send({
+              token: busyReceiver.fcmToken,
+              notification: { title: "📵 Missed Call", body: `${callerName} tried to call you while you were busy` },
+              data: { type: "missedCall", from },
+              android: { priority: "high" },
+            }).catch(e => console.warn("Busy FCM error:", e.message));
+          }
+        } catch (e) { console.warn("Busy notify error:", e.message); }
+        return;
       }
-      // ✅ 2. Check if caller is already in another call (prevents double initiation)
-      if (callStartTimeMap[socket.id]) {
-        return; 
+
+      // ✅ 2. Check if CALLER is already in any call
+      if (activeCallUsers.has(from)) {
+        return;
       }
+
+      // ✅ Mark BOTH participants as busy immediately
+      activeCallUsers.add(from);
+      activeCallUsers.add(to);
 
       callStartTimeMap[socket.id] = { startTime: new Date(), from, to, status: "ongoing", isAnswered: false };
 
@@ -113,7 +134,7 @@ export const initSocket = (server) => {
         const endTime = new Date();
         const isAnswered = callInfo.isAnswered;
         const duration = isAnswered ? Math.floor((endTime - callInfo.startTime) / 1000) : 0;
-        const status = isAnswered ? "completed" : "missed"; // ✅ Missed if never answered
+        const status = isAnswered ? "completed" : "missed";
         
         createCallLogEntry({ 
           caller: callInfo.from, 
@@ -132,6 +153,9 @@ export const initSocket = (server) => {
           io.to(userSocketMap[callInfo.from]).emit("newMessage", m);
           io.to(userSocketMap[callInfo.to]).emit("newMessage", m);
         });
+        // ✅ Free both participants
+        activeCallUsers.delete(callInfo.from);
+        activeCallUsers.delete(callInfo.to);
         delete callStartTimeMap[socket.id];
         delete callStartTimeMap[targetSocket];
       }
@@ -157,6 +181,9 @@ export const initSocket = (server) => {
           io.to(userSocketMap[callInfo.from]).emit("newMessage", m);
           io.to(userSocketMap[callInfo.to]).emit("newMessage", m);
         });
+        // ✅ Free both participants on rejection
+        activeCallUsers.delete(callInfo.from);
+        activeCallUsers.delete(callInfo.to);
         delete callStartTimeMap[targetSocket];
       }
       if (targetSocket) io.to(targetSocket).emit("callRejected");
@@ -170,6 +197,9 @@ export const initSocket = (server) => {
         if (targetSocket) io.to(targetSocket).emit("callEnded");
         const duration = Math.floor((new Date() - callInfo.startTime) / 1000);
         createCallLogEntry({ ...callInfo, endTime: new Date(), duration, status: "completed" });
+        // ✅ Free both participants on disconnect
+        activeCallUsers.delete(callInfo.from);
+        activeCallUsers.delete(callInfo.to);
         delete callStartTimeMap[socket.id];
         if (targetSocket) delete callStartTimeMap[targetSocket];
       }
