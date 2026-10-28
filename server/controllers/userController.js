@@ -312,20 +312,18 @@ export const googleLogin = async (req, res) => {
 
     let user = await User.findOne({ email });
 
-    // 🔒 CASE 1: Email already exists (OTP account)
+    // 🔒 CASE 1: Email already exists
     if (user) {
-      if (!user.googleId) user.googleId = sub; // Link Google ID if not already linked
+      if (!user.googleId) user.googleId = sub; // Link Google ID
       if (user.authProvider === "email") {
-        return res.status(400).json({
-          success: false,
-          message:
-            "This email is already registered using OTP. Please login with OTP.",
-        });
+        user.authProvider = "google";
+        user.isAccountVerified = true;
       }
+      if (picture && !user.profilePic) user.profilePic = picture;
 
-      // Google already linked
       user.lastLoginTime = new Date();
       user.lastLoginIP = req.ip || "";
+      if (lat && lng) user.lastLoginCoords = { lat, lng };
       await user.save();
       const token = generateToken(user._id);
       return res.json({ success: true, token, userData: user });

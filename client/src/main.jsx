@@ -9,7 +9,7 @@ import { CallProvider } from "./context/CallContext.jsx";
 import CallModal from "./components/CallModal.jsx";
 
 createRoot(document.getElementById("root")).render(
-  <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID}>
+  <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID || "831051765094-5mk9lhbs2fj0aahk53kdpmigusa17ol9.apps.googleusercontent.com"}>
     <BrowserRouter>
       <AuthProvider>
         <ChatProvider>

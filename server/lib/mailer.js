@@ -6,46 +6,53 @@ dotenv.config();
 const smtpPort = parseInt(process.env.SMTP_PORT) || 587;
 const smtpSecure = process.env.SMTP_SECURE === "true" || smtpPort === 465;
 
-export const transporter = nodemailer.createTransport({
-  host: "smtp-relay.brevo.com", 
-  port: smtpPort,
-  secure: smtpSecure,
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-});
+// Optional SMTP transporter - only active if SMTP credentials are provided
+export const transporter = (process.env.SMTP_USER && process.env.SMTP_PASS)
+  ? nodemailer.createTransport({
+      host: process.env.SMTP_HOST || "smtp-relay.brevo.com", 
+      port: smtpPort,
+      secure: smtpSecure,
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+      },
+    })
+  : null;
 
-// Verify connection configuration
-transporter.verify((error, success) => {
-  if (error) {
-    console.error(`❌ SMTP Connection Error (Port ${smtpPort}):`, error.message);
-    if (smtpPort === 587) console.warn("💡 Tip: Try setting SMTP_PORT=2525 in your environment variables if 587 is timed out.");
-  } else {
-    console.log(`✅ SMTP Server is ready on port ${smtpPort}`);
-  }
-});
+// Only verify if credentials exist
+if (transporter) {
+  transporter.verify((error) => {
+    if (error) {
+      console.warn("⚠️ SMTP Service warning:", error.message);
+    } else {
+      console.log(`✅ SMTP Server is ready on port ${smtpPort}`);
+    }
+  });
+}
 
 export const sendOTPEmail = async (to, otp) => {
+  if (!transporter) {
+    console.log(`[Auth] OTP for ${to}: ${otp} (Google OAuth is primary authentication).`);
+    return;
+  }
   try {
     await transporter.sendMail({
-      from: process.env.SENDER_EMAIL,
+      from: process.env.SENDER_EMAIL || "no-reply@devchat.com",
       to,
       subject: "Your OTP for Chat App",
       text: `Your OTP is: ${otp}. It is valid for 5 minutes.`,
     });
-   // console.log(`OTP sent to ${to}: ${otp}`);
   } catch (error) {
-    console.error("Error sending OTP:", error);
-    throw new Error("Failed to send OTP email");
+    console.error("Error sending OTP:", error.message);
   }
 };
 
 export const sendReminderEmail = async (to, reminder) => {
+  if (!transporter) return;
   try {
     const fireTime = new Date(reminder.scheduledAt).toLocaleString();
     const info = await transporter.sendMail({
-      from: process.env.SENDER_EMAIL,
+      from: process.env.SENDER_EMAIL || "no-reply@devchat.com",
       to,
       subject: `\u23f0 Reminder in 15 minutes: "${reminder.text.substring(0, 40)}${reminder.text.length > 40 ? '...' : ''}",`,
       html: `
