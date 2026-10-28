@@ -26,7 +26,6 @@ import {
 // ====================================================================
 const PROJECT_DETAILS = {
     name: "Dev Chat",
-    version: "Let's Connect",
     tagline: "Connect, Share, and Collaborate in Real-Time.",
     description: "Dev Chat is a secure, premium messaging platform designed for seamless collaboration. Version 1.1 introduces High-Quality Voice Calls, View Once Media, and Advanced Privacy Controls like user blocking and message scheduling.",
     features: [
@@ -99,7 +98,7 @@ const LoginPage = () => {
                 <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-purple-100/80 border border-purple-200 text-purple-700 text-xs font-bold uppercase tracking-wider mb-6">
                     <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
                     <span className="w-2 h-2 rounded-full bg-emerald-500 -ml-3"></span>
-                    <span>{PROJECT_DETAILS.version} • Google OAuth Verified</span>
+                    <span>Google OAuth Verified</span>
                 </div>
 
                 {/* Logo & Branding */}
@@ -182,9 +181,6 @@ const LoginPage = () => {
                                 <h2 className="text-2xl font-black text-gray-900 uppercase tracking-tight">
                                     {PROJECT_DETAILS.name}
                                 </h2>
-                                <span className="inline-block mt-1 bg-purple-100 text-purple-700 text-[11px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider border border-purple-200">
-                                    {PROJECT_DETAILS.version}
-                                </span>
                             </div>
                             <div className="text-3xl p-2 rounded-2xl bg-purple-50 border border-purple-100">🚀</div>
                         </div>
