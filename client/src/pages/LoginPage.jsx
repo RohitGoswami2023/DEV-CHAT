@@ -26,7 +26,7 @@ import {
 // ====================================================================
 const PROJECT_DETAILS = {
     name: "Dev Chat",
-    version: "Stable Version 1.1",
+    version: "Let's Connect",
     tagline: "Connect, Share, and Collaborate in Real-Time.",
     description: "Dev Chat is a secure, premium messaging platform designed for seamless collaboration. Version 1.1 introduces High-Quality Voice Calls, View Once Media, and Advanced Privacy Controls like user blocking and message scheduling.",
     features: [
