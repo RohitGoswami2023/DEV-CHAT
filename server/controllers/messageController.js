@@ -8,6 +8,7 @@ import { io, userSocketMap } from "../lib/socket.js";
 import admin from "../lib/firebaseAdmin.js";
 import crypto from "crypto";
 import dotenv from "dotenv";
+import { cacheGet, cacheSet, cacheDel } from "../lib/redis.js";
 
 dotenv.config();
 
@@ -114,6 +115,13 @@ export const getMessage = async (req, res) => {
       io.to(senderSocketId).emit("messagesRead", { by: myId });
     }
 
+    // ⚡ Redis Cache Check
+    const cacheKey = `devchat:msgs:${[myId, otherId].sort().join(":")}`;
+    const cached = await cacheGet(cacheKey);
+    if (cached) {
+      return res.json({ success: true, messages: cached, cached: true });
+    }
+
     const messages = await Message.find({
       $or: [
         { senderId: myId, receiverId: otherId },
@@ -147,6 +155,9 @@ export const getMessage = async (req, res) => {
         };
       })
       .filter(Boolean);
+
+    // ⚡ Cache in Redis for fast re-access (90 seconds)
+    await cacheSet(cacheKey, decrypted, 90);
 
     res.json({ success: true, messages: decrypted });
   } catch (err) {
@@ -283,6 +294,9 @@ export const sendMessage = async (req, res) => {
       }
     }
 
+    // ⚡ Invalidate message cache
+    await cacheDel(`devchat:msgs:${[senderId.toString(), receiverId.toString()].sort().join(":")}`);
+
     res.json({ success: true, message: decryptedMessage });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -328,6 +342,7 @@ export const deletePrivateMessage = async (req, res) => {
         io.to(receiverSocketId).emit("messageDeleted", { messageId, chatId: senderId });
       }
 
+      await cacheDel(`devchat:msgs:${[senderId, receiverId].sort().join(":")}`);
       return res.json({ success: true });
     }
 
@@ -336,6 +351,7 @@ export const deletePrivateMessage = async (req, res) => {
       { $addToSet: { deletedFor: userId } }
     );
 
+    await cacheDel(`devchat:msgs:${[senderId, receiverId].sort().join(":")}`);
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -357,6 +373,8 @@ export const deletePrivateChat = async (req, res) => {
       },
       { $addToSet: { deletedFor: myId } }
     );
+
+    await cacheDel(`devchat:msgs:${[myId, otherId].sort().join(":")}`);
 
     await User.findByIdAndUpdate(myId, {
       $addToSet: { hiddenChats: otherId.toString() }

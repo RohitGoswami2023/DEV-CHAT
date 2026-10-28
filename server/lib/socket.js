@@ -1,8 +1,10 @@
 import { Server } from "socket.io";
+import { createAdapter } from "@socket.io/redis-adapter";
 import Message from "../models/Message.js";
 import User from "../models/User.js";
 import admin from "./firebaseAdmin.js";
 import { createCallLogEntry } from "../controllers/callController.js";
+import { pubClient, subClient, addOnlineUser, removeOnlineUser, getOnlineUserIds } from "./redis.js";
 
 export let io;
 export const userSocketMap = {}; // userId -> socketId
@@ -20,12 +22,24 @@ export const initSocket = (server) => {
     },
   });
 
-  io.on("connection", (socket) => {
+  // Attach Redis Adapter for multi-instance scaling if pub/sub clients are available
+  if (pubClient && subClient) {
+    try {
+      io.adapter(createAdapter(pubClient, subClient));
+      console.log("⚡ Socket.io Redis Adapter enabled");
+    } catch (err) {
+      console.warn("⚠️ Failed to attach Socket.io Redis adapter:", err.message);
+    }
+  }
+
+  io.on("connection", async (socket) => {
     const userId = socket.handshake.query?.userId;
     if (!userId) return;
 
     userSocketMap[userId] = socket.id;
-    io.emit("getOnlineUsers", Object.keys(userSocketMap));
+    await addOnlineUser(userId, socket.id);
+    const onlineUsers = await getOnlineUserIds(userSocketMap);
+    io.emit("getOnlineUsers", onlineUsers);
 
     // VOICE CALL SIGNALING
     socket.on("callUser", async ({ to, signalData, from, callerName, callerPic }) => {
@@ -148,7 +162,7 @@ export const initSocket = (server) => {
       if (targetSocket) io.to(targetSocket).emit("callRejected");
     });
 
-    socket.on("disconnect", () => {
+    socket.on("disconnect", async () => {
       const callInfo = callStartTimeMap[socket.id];
       if (callInfo) {
         const targetId = callInfo.to === userId ? callInfo.from : callInfo.to;
@@ -160,7 +174,9 @@ export const initSocket = (server) => {
         if (targetSocket) delete callStartTimeMap[targetSocket];
       }
       delete userSocketMap[userId];
-      io.emit("getOnlineUsers", Object.keys(userSocketMap));
+      await removeOnlineUser(userId, socket.id);
+      const onlineUsers = await getOnlineUserIds(userSocketMap);
+      io.emit("getOnlineUsers", onlineUsers);
     });
   });
 

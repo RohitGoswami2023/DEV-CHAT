@@ -38,6 +38,8 @@ import helmet from "helmet";
 import hpp from "hpp";
 import mongoSanitize from "express-mongo-sanitize";
 import rateLimit from "express-rate-limit";
+import { RedisStore } from "rate-limit-redis";
+import { pubClient } from "./lib/redis.js";
 
 const app = express();
 const server = http.createServer(app);
@@ -107,12 +109,16 @@ app.use((req, res, next) => {
 
 app.use(mongoSanitize()); 
 
-// 4. Rate Limiting
+// 4. Rate Limiting (Redis-backed if available)
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 3000, // Limit each IP
   standardHeaders: true, 
   legacyHeaders: false, 
+  store: pubClient ? new RedisStore({
+    sendCommand: (...args) => pubClient.call(...args),
+    prefix: "rl:"
+  }) : undefined,
   message: "Too many requests from this IP, please try again later."
 });
 app.use("/api", limiter); 
