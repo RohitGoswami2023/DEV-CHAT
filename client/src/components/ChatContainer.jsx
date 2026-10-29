@@ -8,6 +8,8 @@ import { CallContext } from "../context/CallContext";
 import { formatMessageTime } from "../lib/utils";
 import toast from "react-hot-toast";
 import { Phone, PhoneIncoming, PhoneOutgoing, PhoneMissed, Clock } from "lucide-react";
+import { useOnline } from "../hooks/useOnline";
+import { queueMessage, retryMessage } from "../lib/outbox";
 
 const AudioMessage = ({ src, isMine }) => {
   const audioRef = useRef(null);
@@ -87,11 +89,13 @@ const ChatContainer = () => {
     setActiveChat,
     deleteMessage,
     fetchMessages,
+    loadOlderMessages,
     toggleArchiveChat,
     toggleBlockUser,
     fetchPrivateChats,
     privateChats
   } = useContext(ChatContext);
+  const isOnline = useOnline();
   const { authUser, axios } = useContext(AuthContext);
   const { callUser, callActive, callAccepted, duration, formatDuration, call, outgoingCall } = useContext(CallContext);
 
@@ -221,10 +225,34 @@ const ChatContainer = () => {
 
   const isGroup = activeChat.type === "group";
 
-  const renderStatusIcon = (status) => {
-    if (!status || status === "sent") return <span className="text-gray-500 font-bold text-[10px]">✓</span>;
-    if (status === "delivered") return <span className="text-gray-500 font-bold text-[10px]">✓✓</span>;
-    if (status === "read") return <span className="text-blue-500 font-bold text-[10px]">✓✓</span>;
+  const renderStatusIcon = (msg) => {
+    if (msg.status === "pending") {
+      return (
+        <span title="Pending" className="flex items-center text-gray-500 text-[10px]">
+          <Clock className="w-3 h-3 text-gray-500 animate-pulse inline" />
+        </span>
+      );
+    }
+    if (msg.status === "failed") {
+      return (
+        <span className="flex items-center gap-1 text-red-500 text-[10px] font-bold">
+          <span title="Failed">!</span>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              retryMessage(msg.clientId || msg._id);
+            }}
+            className="underline hover:text-red-700 ml-0.5 text-[10px] font-semibold"
+          >
+            Retry
+          </button>
+        </span>
+      );
+    }
+    if (!msg.status || msg.status === "sent") return <span className="text-gray-500 font-bold text-[10px]">✓</span>;
+    if (msg.status === "delivered") return <span className="text-gray-500 font-bold text-[10px]">✓✓</span>;
+    if (msg.status === "read") return <span className="text-blue-500 font-bold text-[10px]">✓✓</span>;
     return null;
   };
 
@@ -284,6 +312,18 @@ const ChatContainer = () => {
     if (isSending) return; // Block double-clicks!
 
     setIsSending(true);
+
+    const targetRoomId = activeChat.type === "group" ? activeChat.data._id : [authUser._id, activeChat.data._id].sort().join("_");
+    if (!previewImage && !previewVideo && !audioUrl && !locationPayload && !previewDocument && !isViewOnce && !replyingTo) {
+      await queueMessage({
+        roomId: targetRoomId,
+        text: input.trim(),
+        sender: authUser._id,
+      });
+      setInput("");
+      setIsSending(false);
+      return;
+    }
 
     // Explicitly package our standard and rich media variables
     const payload = {
@@ -506,6 +546,13 @@ const ChatContainer = () => {
         </div>
       </div>
 
+      {/* OFFLINE BANNER */}
+      {!isOnline && (
+        <div className="bg-amber-600/90 text-white text-xs py-2 px-4 text-center font-medium shadow-md flex items-center justify-center gap-2">
+          <span>⚠️ Offline: showing saved messages. Messages you send will be delivered when you’re back online.</span>
+        </div>
+      )}
+
       {/* MESSAGES */}
       <div
         className="flex-1 overflow-y-auto px-4 lg:px-10 py-6 custom-scrollbar touch-pan-y"
@@ -513,6 +560,16 @@ const ChatContainer = () => {
         {...swipeHandlers}
       >
         <div className="max-w-[820px] mx-auto space-y-4">
+          {/* LOAD EARLIER MESSAGES BUTTON */}
+          <div className="flex justify-center my-2">
+            <button
+              type="button"
+              onClick={loadOlderMessages}
+              className="px-4 py-1.5 bg-white/20 hover:bg-white/30 text-xs font-semibold rounded-full backdrop-blur-md transition-all shadow-sm text-inherit border border-white/20"
+            >
+              Load earlier messages
+            </button>
+          </div>
           {messages.map((msg) => {
             const senderId = msg.sender?._id || msg.senderId || msg.sender;
             const isMine = senderId?.toString() === authUser?._id?.toString();
@@ -521,7 +578,7 @@ const ChatContainer = () => {
             if (isMine && msg.isViewOnce) return null;
 
             return (
-              <div key={msg._id} className={`flex ${isMine ? "justify-end" : "justify-start"}`}>
+              <div key={msg._id || msg.clientId} className={`flex ${isMine ? "justify-end" : "justify-start"}`}>
                 <div onContextMenu={(e) => onRightClick(e, msg)}
                   className={`relative group max-w-[85%] lg:max-w-[520px] px-5 py-3 rounded-2xl shadow transition-all 
                   ${isMine ? "bg-gray-200 text-black rounded-tr-none" : "bg-green-600 text-white rounded-tl-none"} ${openMsgMenu === msg._id ? "z-50" : "z-0"}`}>
@@ -742,7 +799,7 @@ const ChatContainer = () => {
 
                   <div className="flex items-center justify-end gap-1 mt-1">
                     <p className="text-[11px] opacity-70">{formatMessageTime(msg.createdAt)}</p>
-                    {isMine && !isGroup && renderStatusIcon(msg.status)}
+                    {isMine && (!isGroup || msg.status === "pending" || msg.status === "failed") && renderStatusIcon(msg)}
                   </div>
                 </div>
               </div>

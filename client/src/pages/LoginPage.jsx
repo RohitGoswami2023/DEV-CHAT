@@ -5,20 +5,20 @@ import { GoogleLogin } from "@react-oauth/google";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
-import { 
-    ShieldCheck, 
-    Zap, 
-    PhoneCall, 
-    EyeOff, 
-    Lock, 
-    Bell, 
-    Users, 
-    Calendar, 
-    MapPin, 
-    Sparkles, 
-    ExternalLink, 
-    Mail, 
-    Loader2 
+import {
+    ShieldCheck,
+    Zap,
+    PhoneCall,
+    EyeOff,
+    Lock,
+    Bell,
+    Users,
+    Calendar,
+    MapPin,
+    Sparkles,
+    ExternalLink,
+    Mail,
+    Loader2
 } from "lucide-react";
 
 // ====================================================================
@@ -84,7 +84,7 @@ const LoginPage = () => {
 
     return (
         <div className="min-h-screen w-full bg-[url('/bgImage.svg')] bg-cover bg-center bg-fixed flex flex-col items-center justify-center p-4 md:p-8 overflow-y-auto">
-            
+
             {/* Ambient Background Glow Effect */}
             <div className="fixed inset-0 pointer-events-none flex items-center justify-center -z-10">
                 <div className="w-[500px] h-[500px] bg-purple-500/15 rounded-full blur-[120px] animate-pulse"></div>
@@ -93,35 +93,35 @@ const LoginPage = () => {
 
             {/* === MAIN LOGIN HERO CONTAINER === */}
             <div className="w-full max-w-lg bg-white/80 backdrop-blur-2xl border border-white/60 rounded-[36px] shadow-2xl p-8 md:p-10 flex flex-col items-center text-center relative z-10 my-8 transition-all duration-300 hover:shadow-purple-500/10">
-                
+
                 {/* Status Pill */}
                 <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-purple-100/80 border border-purple-200 text-purple-700 text-xs font-bold uppercase tracking-wider mb-6">
                     <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
                     <span className="w-2 h-2 rounded-full bg-emerald-500 -ml-3"></span>
-                    <span>Google OAuth Verified</span>
+                    <span>{PROJECT_DETAILS.version} • Google OAuth Verified</span>
                 </div>
 
                 {/* Logo & Branding */}
                 <div className="relative mb-5 group">
                     <div className="absolute -inset-2 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-2xl blur-lg opacity-30 group-hover:opacity-50 transition duration-500"></div>
-                    <img 
-                        src={assets.logo_big} 
-                        alt="Dev Chat Logo" 
-                        className="relative w-36 h-auto drop-shadow-2xl transition-transform duration-300 group-hover:scale-105" 
+                    <img
+                        src={assets.logo_big}
+                        alt="Dev Chat Logo"
+                        className="relative w-36 h-auto drop-shadow-2xl transition-transform duration-300 group-hover:scale-105"
                     />
                 </div>
 
                 <h1 className="text-3xl md:text-4xl font-black text-gray-900 tracking-tight mb-2">
                     Welcome to <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-700 to-indigo-600">Dev Chat</span>
                 </h1>
-                
+
                 <p className="text-gray-600 text-sm md:text-base font-medium max-w-sm mb-8 leading-relaxed">
                     Fast, secure, real-time collaboration. Sign in instantly with your verified Google account.
                 </p>
 
                 {/* === GOOGLE SIGN IN SECTION === */}
                 <div className="w-full max-w-sm flex flex-col items-center gap-4 p-5 rounded-2xl bg-gradient-to-b from-gray-50/80 to-white/90 border border-gray-200/80 shadow-inner">
-                    
+
                     {isAuthenticating ? (
                         <div className="flex items-center gap-3 py-3 px-6 text-purple-700 font-semibold text-sm">
                             <Loader2 className="w-5 h-5 animate-spin text-purple-600" />
@@ -129,14 +129,14 @@ const LoginPage = () => {
                         </div>
                     ) : (
                         <div className="w-full flex justify-center transform transition-transform hover:scale-[1.02] active:scale-[0.98]">
-                            <GoogleLogin 
-                                theme="filled_blue" 
-                                shape="pill" 
-                                size="large" 
-                                text="continue_with" 
-                                width="320" 
-                                onSuccess={handleGoogleLogin} 
-                                onError={() => toast.error("Google authentication failed. Please try again.")} 
+                            <GoogleLogin
+                                theme="filled_blue"
+                                shape="pill"
+                                size="large"
+                                text="continue_with"
+                                width="320"
+                                onSuccess={handleGoogleLogin}
+                                onError={() => toast.error("Google authentication failed. Please try again.")}
                             />
                         </div>
                     )}
@@ -181,6 +181,9 @@ const LoginPage = () => {
                                 <h2 className="text-2xl font-black text-gray-900 uppercase tracking-tight">
                                     {PROJECT_DETAILS.name}
                                 </h2>
+                                <span className="inline-block mt-1 bg-purple-100 text-purple-700 text-[11px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider border border-purple-200">
+                                    {PROJECT_DETAILS.version}
+                                </span>
                             </div>
                             <div className="text-3xl p-2 rounded-2xl bg-purple-50 border border-purple-100">🚀</div>
                         </div>
@@ -201,8 +204,8 @@ const LoginPage = () => {
                             {PROJECT_DETAILS.features.map((feature, idx) => {
                                 const IconComponent = feature.icon;
                                 return (
-                                    <span 
-                                        key={idx} 
+                                    <span
+                                        key={idx}
                                         className={`inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl border shadow-sm ${feature.color}`}
                                     >
                                         <IconComponent className="w-3.5 h-3.5" />
@@ -248,10 +251,10 @@ const LoginPage = () => {
                     {/* Developer Social Links */}
                     <div className="flex flex-wrap gap-3 pt-4 border-t border-gray-200/60">
                         {DEVELOPER_DETAILS.linkedin && (
-                            <a 
-                                href={DEVELOPER_DETAILS.linkedin} 
-                                target="_blank" 
-                                rel="noopener noreferrer" 
+                            <a
+                                href={DEVELOPER_DETAILS.linkedin}
+                                target="_blank"
+                                rel="noopener noreferrer"
                                 className="flex-1 inline-flex items-center justify-center gap-1.5 text-xs font-bold text-gray-800 bg-white border border-gray-200 hover:bg-gray-50 hover:border-purple-300 px-4 py-3 rounded-xl transition-all shadow-sm"
                             >
                                 <span>LinkedIn</span>
@@ -260,10 +263,10 @@ const LoginPage = () => {
                         )}
 
                         {DEVELOPER_DETAILS.instagram && (
-                            <a 
-                                href={DEVELOPER_DETAILS.instagram} 
-                                target="_blank" 
-                                rel="noopener noreferrer" 
+                            <a
+                                href={DEVELOPER_DETAILS.instagram}
+                                target="_blank"
+                                rel="noopener noreferrer"
                                 className="flex-1 inline-flex items-center justify-center gap-1.5 text-xs font-bold text-gray-800 bg-white border border-gray-200 hover:bg-gray-50 hover:border-purple-300 px-4 py-3 rounded-xl transition-all shadow-sm"
                             >
                                 <span>Instagram</span>
@@ -272,8 +275,8 @@ const LoginPage = () => {
                         )}
 
                         {DEVELOPER_DETAILS.email && (
-                            <a 
-                                href={DEVELOPER_DETAILS.email} 
+                            <a
+                                href={DEVELOPER_DETAILS.email}
                                 className="flex-1 inline-flex items-center justify-center gap-1.5 text-xs font-bold text-white bg-gray-900 hover:bg-black hover:shadow-lg px-4 py-3 rounded-xl transition-all shadow-md"
                             >
                                 <Mail className="w-3.5 h-3.5" />

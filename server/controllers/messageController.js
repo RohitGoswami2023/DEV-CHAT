@@ -437,3 +437,118 @@ export const consumeViewOnce = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+
+/* ================= OFFLINE SYNC / IDEMPOTENT MESSAGE HANDLERS ================= */
+const safeDecrypt = (t) => {
+  if (!t) return t;
+  try {
+    if (typeof t === "string" && t.includes(":") && t.split(":")[0].length === 32) {
+      return decryptText(t);
+    }
+  } catch (e) {}
+  return t;
+};
+
+export const getMessagesByRoom = async (req, res) => {
+  try {
+    const { roomId, before } = req.query;
+    if (!roomId) return res.status(400).json({ error: "roomId required" });
+
+    const limit = Math.min(Number(req.query.limit) || 50, 100);
+    const filter = { roomId };
+    if (before) filter.createdAt = { $lt: new Date(before) };
+
+    // Redis Cache check
+    const cacheKey = before ? `devchat:msgs:${roomId}:${before}` : `devchat:msgs:${roomId}:latest`;
+    const cached = await cacheGet(cacheKey);
+    if (cached) {
+      return res.json(cached);
+    }
+
+    const msgs = await Message.find(filter)
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .lean();
+
+    const formatted = msgs.reverse().map((m) => ({
+      ...m,
+      text: safeDecrypt(m.text),
+    }));
+
+    // Cache in Redis for 60 seconds
+    await cacheSet(cacheKey, formatted, 60);
+
+    res.json(formatted);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const createMessageWithIdempotency = async (req, res) => {
+  const { clientId, roomId, text, createdAt } = req.body;
+  if (!clientId || !roomId || !text?.trim()) {
+    return res.status(400).json({ error: "clientId, roomId and text are required" });
+  }
+
+  const sender = req.user._id || req.user.id;
+
+  const existing = await Message.findOne({ sender, clientId }).lean();
+  if (existing) {
+    return res.json({
+      ...existing,
+      text: safeDecrypt(existing.text),
+    });
+  }
+
+  // Determine receiverId if roomId is 1-on-1 (e.g. userId1_userId2)
+  let receiverId = null;
+  if (roomId.includes("_")) {
+    const parts = roomId.split("_");
+    const otherPart = parts.find((p) => p !== sender.toString());
+    if (otherPart) receiverId = otherPart;
+  } else if (roomId.length === 24) {
+    receiverId = roomId;
+  }
+
+  try {
+    const msg = await Message.create({
+      clientId,
+      roomId,
+      text: text.trim(),
+      sender,
+      senderId: sender,
+      receiverId: receiverId || undefined,
+      createdAt: createdAt ? new Date(createdAt) : new Date(),
+      status: "sent",
+    });
+    const saved = msg.toObject();
+    saved.text = safeDecrypt(saved.text);
+
+    // Invalidate Redis caches for this roomId
+    await cacheDel(`devchat:msgs:${roomId}:latest`);
+    if (receiverId) {
+      await cacheDel(`devchat:msgs:${[sender.toString(), receiverId.toString()].sort().join(":")}`);
+    }
+
+    // Broadcast with io.to(roomId).emit("message:new", saved)
+    if (io) {
+      io.to(roomId).emit("message:new", saved);
+      io.to(roomId).emit("newMessage", saved);
+      if (receiverId && userSocketMap[receiverId]) {
+        io.to(userSocketMap[receiverId]).emit("message:new", saved);
+        io.to(userSocketMap[receiverId]).emit("newMessage", saved);
+      }
+    }
+
+    res.status(201).json(saved);
+  } catch (err) {
+    if (err.code === 11000) {
+      // Race condition: return the one saved
+      const raced = await Message.findOne({ sender, clientId }).lean();
+      if (raced) raced.text = safeDecrypt(raced.text);
+      return res.json(raced);
+    }
+    res.status(500).json({ error: err.message });
+  }
+};

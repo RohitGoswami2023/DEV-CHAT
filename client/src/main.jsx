@@ -23,6 +23,11 @@ createRoot(document.getElementById("root")).render(
   </GoogleOAuthProvider>
 );
 
+// App Shell Service Worker for Offline capability
+if ("serviceWorker" in navigator && import.meta.env.PROD) {
+  window.addEventListener("load", () => navigator.serviceWorker.register("/sw.js"));
+}
+
 // Explicit Service Worker Registration for FCM
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {

@@ -1,4 +1,4 @@
-import React, { useContext, useState } from "react";
+import React, { useContext, useEffect } from "react";
 import { Navigate, Route, Routes, useNavigate, useLocation } from "react-router-dom";
 import LoginPage from "./pages/LoginPage";
 import HomePage from "./pages/HomePage";
@@ -9,11 +9,14 @@ import { AuthContext } from "./context/AuthContext";
 import AdminDashboard from "./pages/AdminDashboard";
 import CreateGroupPage from "./pages/groups/CreateGroupPage";
 import JoinGroupPage from "./pages/groups/JoinGroupPage";
+import { startOutboxSync } from "./lib/outbox";
 
 const App = () => {
   const { authUser, isCheckingAuth } = useContext(AuthContext);
   const navigate = useNavigate();
   const location = useLocation();
+
+  useEffect(() => startOutboxSync(), []);
 
   const swipeHandlers = useSwipe({
     onSwipeRight: () => {

@@ -3,6 +3,8 @@ import axios from "axios";
 import toast from "react-hot-toast";
 import { io } from "socket.io-client";
 import { requestFirebaseToken, onMessageListener } from "../lib/firebase";
+import { flushOutbox, hasUnsentMessages } from "../lib/outbox";
+import { clearMessageCache } from "../lib/messageCache";
 
 const backendUrl = import.meta.env.VITE_BACKEND_URL;
 axios.defaults.baseURL = backendUrl;
@@ -11,7 +13,14 @@ export const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(() => localStorage.getItem("token"));
-  const [authUser, setAuthUser] = useState(null);
+  const [authUser, setAuthUser] = useState(() => {
+    try {
+      const saved = localStorage.getItem("user");
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
   const [onlineUsers, setOnlineUsers] = useState([]);
 
   // Loading state to prevent blank screen/redirects on refresh
@@ -61,6 +70,11 @@ export const AuthProvider = ({ children }) => {
       transports: ["websocket"],
     });
 
+    socketRef.current.on("connect", () => {
+      console.log("⚡ Socket connected, flushing outbox...");
+      flushOutbox();
+    });
+
     socketRef.current.on("getOnlineUsers", setOnlineUsers);
   };
 
@@ -70,22 +84,34 @@ export const AuthProvider = ({ children }) => {
     setOnlineUsers([]);
   };
 
-  // ================= CHECK AUTH (UPDATED) =================
+  // ================= CHECK AUTH (OFFLINE SAFE) =================
   const checkAuth = async () => {
-    setIsCheckingAuth(true); // Start loading
+    setIsCheckingAuth(true);
+
+    // If completely offline, keep existing cached auth user from localStorage!
+    if (!navigator.onLine) {
+      setIsCheckingAuth(false);
+      return;
+    }
+
     try {
       const { data } = await axios.get("/api/auth/check");
       if (data.success) {
         setAuthUser(data.user);
+        localStorage.setItem("user", JSON.stringify(data.user));
         connectSocket(data.user);
       }
     } catch (error) {
-      setAuthUser(null);
-      localStorage.removeItem("token");
-      setToken(null);
-      delete axios.defaults.headers.common.Authorization;
+      // Only clear credentials if the server explicitly responded with 401 Unauthorized
+      if (error.response?.status === 401) {
+        setAuthUser(null);
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        setToken(null);
+        delete axios.defaults.headers.common.Authorization;
+      }
     } finally {
-      setIsCheckingAuth(false); // Stop loading when done
+      setIsCheckingAuth(false);
     }
   };
 
@@ -205,6 +231,7 @@ export const AuthProvider = ({ children }) => {
   // ================= FINALIZE AUTH =================
   const finalizeAuth = (jwt, user) => {
     localStorage.setItem("token", jwt);
+    if (user) localStorage.setItem("user", JSON.stringify(user));
     setToken(jwt);
     applyAxiosToken(jwt);
     setAuthUser(user);
@@ -212,13 +239,28 @@ export const AuthProvider = ({ children }) => {
   };
 
   // ================= LOGOUT =================
-  const logout = (notify = true) => {
+  const logout = async (notify = true) => {
+    if (await hasUnsentMessages()) {
+      const confirmed = window.confirm(
+        "Some messages haven't been sent yet. Log out anyway? They will be lost."
+      );
+      if (!confirmed) return false;
+    }
+
+    try {
+      await clearMessageCache();
+    } catch (e) {
+      console.warn("Failed to clear message cache on logout:", e);
+    }
+
     localStorage.removeItem("token");
+    localStorage.removeItem("user");
     setToken(null);
     setAuthUser(null);
     applyAxiosToken(null);
     disconnectSocket();
     if (notify) toast.success("Logged out");
+    return true;
   };
 
   // ================= UPDATE PROFILE =================
@@ -227,6 +269,7 @@ export const AuthProvider = ({ children }) => {
       const { data } = await axios.put("/api/auth/update-profile", body);
       if (data.success) {
         setAuthUser(data.user);
+        localStorage.setItem("user", JSON.stringify(data.user));
         toast.success("Profile updated");
       }
     } catch (err) {
@@ -240,7 +283,7 @@ export const AuthProvider = ({ children }) => {
       applyAxiosToken(token);
       checkAuth();
     } else {
-      setIsCheckingAuth(false); // No token, stop loading immediately
+      setIsCheckingAuth(false);
     }
   }, []);
 
@@ -285,7 +328,7 @@ export const AuthProvider = ({ children }) => {
         onlineUsers,
         socket: socketRef.current,
         token,
-        isCheckingAuth, // 🔥 Exposed for App.jsx
+        isCheckingAuth,
 
         login,
         signup,

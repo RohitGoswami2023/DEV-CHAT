@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, useRef } from "react";
 import { AuthContext } from "./AuthContext.jsx";
 import toast from "react-hot-toast";
+import { saveMessages, getCachedMessages } from "../lib/messageCache";
 
 export const ChatContext = createContext();
 
@@ -127,7 +128,6 @@ export const ChatProvider = ({ children }) => {
   // --- MESSAGING ---
   const fetchMessages = async (chat) => {
     setActiveChat(chat);
-    setMessages([]);
     setShowRightSidebar(false); 
     
     setUnseenMessages((prev) => {
@@ -136,12 +136,78 @@ export const ChatProvider = ({ children }) => {
       return copy;
     });
 
+    const targetRoomId = chat.type === "group" ? chat.data._id : [authUser?._id, chat.data._id].sort().join("_");
+
+    // 1. Instant load from IndexedDB cache
     try {
-      const url = chat.type === "private" ? `/api/messages/${chat.data._id}` : `/api/group-messages/${chat.data._id}`;
-      const { data } = await axios.get(url);
-      if (data.success) setMessages(data.messages);
-    } catch (error) { console.error(error); }
+      const cached = await getCachedMessages(targetRoomId);
+      if (cached && cached.length > 0) {
+        setMessages(cached);
+      } else {
+        setMessages([]);
+      }
+    } catch (e) {
+      setMessages([]);
+    }
+
+    // 2. Refresh from server if online
+    if (navigator.onLine) {
+      try {
+        const url = chat.type === "private" ? `/api/messages/${chat.data._id}` : `/api/group-messages/${chat.data._id}`;
+        const { data } = await axios.get(url);
+        if (data.success && Array.isArray(data.messages)) {
+          const tagged = data.messages.map(m => ({ ...m, roomId: targetRoomId }));
+          await saveMessages(tagged);
+          const updated = await getCachedMessages(targetRoomId);
+          setMessages(updated.length > 0 ? updated : data.messages);
+        }
+      } catch (error) { 
+        console.error("fetchMessages online fetch error (showing cached):", error); 
+      }
+    }
   };
+
+  const loadOlderMessages = async () => {
+    if (!activeChat || messages.length === 0) return;
+    const targetRoomId = activeChat.type === "group" ? activeChat.data._id : [authUser?._id, activeChat.data._id].sort().join("_");
+    const oldest = messages[0].createdAt;
+    let older = await getCachedMessages(targetRoomId, { before: oldest });
+
+    if (older.length === 0 && navigator.onLine) {
+      try {
+        const { data } = await axios.get(`/api/messages?roomId=${encodeURIComponent(targetRoomId)}&before=${encodeURIComponent(oldest)}&limit=50`);
+        if (data && Array.isArray(data)) {
+          older = data.map(m => ({ ...m, roomId: targetRoomId }));
+          await saveMessages(older);
+        }
+      } catch (e) {
+        console.error("loadOlderMessages fetch error:", e);
+      }
+    }
+
+    if (older && older.length > 0) {
+      setMessages(prev => {
+        const seen = new Set(prev.map(m => m._id));
+        const filtered = older.filter(m => !seen.has(m._id));
+        return [...filtered, ...prev];
+      });
+    }
+  };
+
+  // Reload when a message is queued, sent, or failed locally
+  useEffect(() => {
+    const reload = async () => {
+      if (!activeChatRef.current || !authUser) return;
+      const c = activeChatRef.current;
+      const targetRoomId = c.type === "group" ? c.data._id : [authUser._id, c.data._id].sort().join("_");
+      const cached = await getCachedMessages(targetRoomId);
+      if (cached && cached.length > 0) {
+        setMessages(cached);
+      }
+    };
+    window.addEventListener("devchat:changed", reload);
+    return () => window.removeEventListener("devchat:changed", reload);
+  }, [authUser]);
 
   const sendMessage = async (payload) => {
     try {
@@ -160,8 +226,11 @@ export const ChatProvider = ({ children }) => {
       }
       
       if (res?.data?.success) {
+        const targetRoomId = activeChat.type === "group" ? activeChat.data._id : [authUser?._id, activeChat.data._id].sort().join("_");
+        const msgWithRoom = { ...res.data.message, roomId: targetRoomId };
+        await saveMessages([msgWithRoom]);
         if (activeChat.type === "private") {
-             setMessages((prev) => [...prev, res.data.message]);
+             setMessages((prev) => [...prev, msgWithRoom]);
         }
       }
     } catch (error) {
@@ -185,7 +254,6 @@ export const ChatProvider = ({ children }) => {
       await axios.delete(endpoint, { data: { mode } });
     } catch (error) { 
       toast.error("Failed to delete"); 
-      // Rollback logic could be added here, but usually not needed for simple UI
     }
   };
 
@@ -283,12 +351,28 @@ export const ChatProvider = ({ children }) => {
       const chatId = msg.group?._id || msg.group || msg.groupId || 
                      (msg.senderId === authUser._id ? msg.receiverId : msg.senderId);
 
+      const targetRoomId = msg.roomId || (msg.group?._id || msg.group || msg.groupId 
+        ? (msg.group?._id || msg.group || msg.groupId)
+        : [authUser._id, chatId].sort().join("_"));
+
+      // Cache locally in IndexedDB
+      saveMessages([{ ...msg, roomId: targetRoomId }]);
+
       if (msg.senderId && !msg.group && !currentPrivates.find(u => u._id === msg.senderId)) {
         fetchPrivateChats();
       }
 
       if (currentActiveChat && chatId === currentActiveChat.data._id) {
-        setMessages((prev) => (prev.find(m => m._id === msg._id) ? prev : [...prev, msg]));
+        // Real-time deduplication with pending local copy by clientId or _id
+        setMessages((prev) => {
+          if (msg.clientId && prev.some(m => m._id === msg.clientId || m.clientId === msg.clientId)) {
+            return prev.map(m => (m._id === msg.clientId || m.clientId === msg.clientId) ? { ...msg, roomId: targetRoomId } : m);
+          }
+          if (prev.some(m => m._id === msg._id)) {
+            return prev.map(m => m._id === msg._id ? { ...msg, roomId: targetRoomId } : m);
+          }
+          return [...prev, { ...msg, roomId: targetRoomId }];
+        });
       } else {
         setUnseenMessages((prev) => ({ ...prev, [chatId]: (prev[chatId] || 0) + 1 }));
       }
@@ -398,19 +482,17 @@ export const ChatProvider = ({ children }) => {
 
     const onUserKicked = ({ groupId, userId }) => {
       const currentActiveChat = activeChatRef.current;
-      if (userId === authUser._id) {
-        if (currentActiveChat && currentActiveChat.data._id === groupId) { setActiveChat(null); setMessages([]); }
-        setGroups((prev) => prev.filter((g) => g._id !== groupId));
-        toast.error("Removed from group");
-      } else { fetchGroups(); }
+      if (currentActiveChat && currentActiveChat.data._id === groupId && authUser._id === userId) {
+        setActiveChat(null);
+        toast.error("You were removed from this group");
+        fetchGroups();
+      } else {
+        fetchGroups();
+      }
     };
 
-    const onRequestAccepted = () => { 
-        fetchPrivateChats(); 
-        toast.success("New Connection!"); 
-    };
-
-    const onNewRequest = () => { fetchChatRequests(); toast("New Friend Request"); };
+    const onRequestAccepted = ({ senderId }) => { fetchPrivateChats(); };
+    const onNewRequest = () => { fetchChatRequests(); toast("New Chat Request!"); };
     
     const onGroupDeleted = (groupId) => { 
       const currentActiveChat = activeChatRef.current;
@@ -434,7 +516,9 @@ export const ChatProvider = ({ children }) => {
       ));
     };
 
+    // Both newMessage and message:new event listeners
     socket.on("newMessage", onNewMessage);
+    socket.on("message:new", onNewMessage);
     socket.on("messagesRead", onMessagesRead);
     socket.on("messageDeleted", onDeleted);
     socket.on("groupMessageDeleted", onDeleted);
@@ -453,20 +537,15 @@ export const ChatProvider = ({ children }) => {
     // ── Reminder socket listeners ──────────────────────────────
     const onNewReminder = (reminder) => {
       setReminders(prev => prev.find(r => r._id === reminder._id) ? prev : [...prev, reminder]);
-      toast(`⏰ New reminder scheduled: ${reminder.text.substring(0, 40)}`);
     };
-    const onReminderDeleted = ({ reminderId }) => setReminders(prev => prev.filter(r => r._id !== reminderId));
-    const onReminderExecuted = ({ reminderId }) => setReminders(prev => prev.filter(r => r._id !== reminderId));
-    const onReminderWarning = ({ reminder }) => {
-      toast(`⏰ Reminder in 15 min: "${reminder.text.substring(0, 50)}"`, { duration: 6000 });
-      
-      // PLAY NOTIFICATION SOUND
-      try {
-         const audio = new Audio("https://cdn.pixabay.com/download/audio/2021/08/04/audio_0625c1539c.mp3?filename=success-1-6297.mp3");
-         audio.volume = 0.7;
-         audio.play().catch(e => console.log("Audio blocked:", e));
-      } catch(e) {}
-
+    const onReminderDeleted = ({ reminderId }) => {
+      setReminders(prev => prev.filter(r => r._id !== reminderId));
+    };
+    const onReminderExecuted = (reminder) => {
+      toast(`⏰ Reminder: ${reminder.text}`, { duration: 6000, icon: "🔔" });
+    };
+    const onReminderWarning = (reminder) => {
+      toast(`⚠️ Reminder in 15 mins: ${reminder.text}`, { duration: 6000, icon: "⏰" });
       if (typeof Notification !== "undefined" && Notification.permission === "granted") {
         try { new Notification("⏰ Reminder in 15 minutes", { body: reminder.text, icon: "/vite.svg" }); } catch(e) {}
       }
@@ -479,6 +558,7 @@ export const ChatProvider = ({ children }) => {
 
     return () => {
       socket.off("newMessage", onNewMessage);
+      socket.off("message:new", onNewMessage);
       socket.off("messagesRead", onMessagesRead);
       socket.off("messageDeleted", onDeleted);
       socket.off("groupMessageDeleted", onDeleted);
@@ -507,7 +587,7 @@ export const ChatProvider = ({ children }) => {
   return (
     <ChatContext.Provider value={{ 
         groups, privateChats, chatRequests, blockedUsers, activeChat, setActiveChat, messages,
-        unseenMessages, fetchMessages, sendMessage, deleteMessage,
+        unseenMessages, fetchMessages, sendMessage, deleteMessage, loadOlderMessages,
         showRightSidebar,
         outgoingRequests,
         toggleRightSidebar,
